@@ -46,7 +46,8 @@
 }
 
 .splash:after {
-	content: "frappe";
+	/*content: "frappe";*/
+	content: "letzERP";
 	font-size: 30px;
 	font-weight: 300;
 	font-family: Helvetica, Arial, sans-serif;

@@ -1,19 +1,19 @@
 frappe.provide('frappe.ui.misc');
 frappe.ui.misc.about = function() {
 	if(!frappe.ui.misc.about_dialog) {
-		var d = new frappe.ui.Dialog({title: __('Frappe Framework')})
+		var d = new frappe.ui.Dialog({title: __('LetzERP')})
 
 		$(d.body).html(repl("<div>\
 		<p>"+__("Open Source Web Applications for the Web")+"</p>  \
 		<p><i class='icon-globe icon-fixed-width'></i>\
-			 Website: <a href='https://frappe.io' target='_blank'>https://frappe.io</a></p>\
+			 Website: <a href='#' target='_blank'>#</a></p>\
 	 	<p><i class='icon-github icon-fixed-width'></i>\
-			Source: <a href='https://github.com/frappe' target='_blank'>https://github.com/frappe</a></p>\
+			Source: <a href='#' target='_blank'>#</a></p>\
 		<hr>\
 		<h4>Installed Apps</h4>\
 		<div id='about-app-versions'>Loading versions...</div>\
 		<hr>\
-		<p class='text-muted'>&copy; 2014 Web Notes Technologies Pvt. Ltd and contributers </p> \
+		<p class='text-muted'>&copy; LetzERP Pvt. Ltd and contributers </p> \
 		</div>", frappe.app));
 
 		frappe.ui.misc.about_dialog = d;
