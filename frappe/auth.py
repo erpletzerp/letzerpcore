@@ -132,6 +132,8 @@ class LoginManager:
 		frappe.local.session = frappe.local.session_obj.data
 
 	def authenticate(self, user=None, pwd=None):
+		frappe.errprint(['user',user])
+		frappe.errprint(['pass',pwd])
 		if not (user and pwd):
 			user, pwd = frappe.form_dict.get('usr'), frappe.form_dict.get('pwd')
 		if not (user and pwd):
@@ -262,3 +264,4 @@ def clear_cookies():
 	if hasattr(frappe.local, "session"):
 		frappe.session.sid = ""
 	frappe.local.cookie_manager.delete_cookie(["full_name", "user_id", "sid", "user_image", "system_user"])
+

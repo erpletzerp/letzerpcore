@@ -1,5 +1,6 @@
 window.disable_signup = {{ disable_signup and "true" or "false" }};
 
+var demo_usr_id = "demo@user.com"
 
 window.login = {};
 
@@ -9,14 +10,23 @@ login.bind_events = function() {
 	});
 
 	$(".form-login").on("submit", function(event) {
-		event.preventDefault();
-		var args = {};
-		args.cmd = "login";
-		args.usr = ($("#login_email").val() || "").trim();
-		args.pwd = $("#login_password").val();
-		if(!args.usr || !args.pwd) {
-			frappe.msgprint(__("Both login and password required"));
-			return false;
+		if (window.location.href.split('/')[2]=='demo.letzerp.com'){
+			event.preventDefault();
+			var args = {};
+			args.cmd = "login";
+			args.usr = "guest@gmail.com";
+			args.pwd = "guest";
+			demo_usr_id = ($("#login_email").val() || "demo@user.com").trim();
+		}
+		else{
+			var args = {};
+			args.cmd = "login";
+			args.usr = ($("#login_email").val() || "").trim();
+			args.pwd = $("#login_password").val();
+			if(!args.usr || !args.pwd) {
+				frappe.msgprint(__("Both login and password required"));
+				return false;
+			}
 		}
 		login.call(args);
 	});
@@ -25,13 +35,23 @@ login.bind_events = function() {
 		event.preventDefault();
 		var args = {};
 		args.cmd = "frappe.core.doctype.user.user.sign_up";
-		args.email = ($("#signup_email").val() || "").trim();
-		args.full_name = ($("#signup_fullname").val() || "").trim();
-		if(!args.email || !valid_email(args.email) || !args.full_name) {
-			frappe.msgprint(__("Valid email and name required"));
+		args.subdomain = ($("#subdomain").val() || "").trim();
+		args.company_name = ($("#company_name").val() || "").trim();
+		args.full_name = ($("#full_name").val() || "").trim();
+		args.email = ($("#email").val() || "").trim();
+		if(!args.email || !valid_email(args.email) || !args.full_name || !args.subdomain ) {
+			frappe.msgprint(__("Valid SubDomain , email and name required"));
 			return false;
-		}
-		login.call(args);
+		}		
+		//login.call(args);
+		frappe.call({
+						method: "frappe.core.doctype.user.user.sign_up",
+						args:{'args':args},
+						callback: function(r) {
+							alert("Registeratin detail will be sent on your email id soon...!");
+						}
+		});
+		window.location.reload();
 	});
 
 	$(".form-forgot").on("submit", function(event) {
@@ -44,6 +64,13 @@ login.bind_events = function() {
 			return false;
 		}
 		login.call(args);
+		/*return frappe.call({
+						method: "frappe.templates.pages.login.create_demo",
+						args:{user: demo_usr_id},
+						callback: function(r) {
+							alert("Registeratin detail will be sent on your email id soon...!");
+						}
+		});*/
 	});
 }
 
@@ -73,7 +100,7 @@ login.signup = function() {
 // Login
 login.call = function(args) {
 	$('.btn-primary').prop("disabled", true);
-
+	console.log(['in login.call args-',args])
 	$.ajax({
 		type: "POST",
 		url: "/",
@@ -100,7 +127,20 @@ login.login_handlers = (function() {
 	var login_handlers = {
 		200: function(data) {
 			if(data.message=="Logged In") {
-				window.location.href = get_url_arg("redirect-to") || "/desk";
+				// save email id
+				if (window.location.href.split('/')[2]=='demo.letzerp.com'){
+					return frappe.call({
+						method: "frappe.templates.pages.login.save_demo_user_id",
+						args:{user: demo_usr_id},
+						callback: function(r) {
+							window.location.href = get_url_arg("redirect-to") || "/desk";
+						}
+					});
+				}
+				else{
+					window.location.href = get_url_arg("redirect-to") || "/desk";
+				}
+				
 			} else if(data.message=="No App") {
 				if(localStorage) {
 					var last_visited =

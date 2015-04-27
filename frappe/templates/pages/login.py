@@ -193,6 +193,15 @@ def login_oauth_user(data=None, provider=None, email_id=None, key=None):
 	# because of a GET request!
 	frappe.db.commit()
 
+@frappe.whitelist()
+def save_demo_user_id(user):
+	"""
+		save the email id of demo user
+	"""
+	frappe.db.sql("""insert into `tabDemo User Email IDs` values(%s);""",(user))
+
+
+
 def update_oauth_user(user, data, provider):
 	if isinstance(data.get("location"), dict):
 		data["location"] = data.get("location").get("name")

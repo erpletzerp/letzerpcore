@@ -323,30 +323,32 @@ def update_password(new_password, key=None, old_password=None):
 	return _("Password Updated")
 
 @frappe.whitelist(allow_guest=True)
-def sign_up(email, full_name):
-	user = frappe.db.get("User", {"email": email})
-	if user:
-		if user.disabled:
-			return _("Registered but disabled.")
-		else:
-			return _("Already Registered")
-	else:
-		if frappe.db.sql("""select count(*) from tabUser where
-			HOUR(TIMEDIFF(CURRENT_TIMESTAMP, TIMESTAMP(modified)))=1""")[0][0] > 200:
-			frappe.msgprint("Login is closed for sometime, please check back again in an hour.")
-			raise Exception, "Too Many New Users"
-		from frappe.utils import random_string
-		user = frappe.get_doc({
-			"doctype":"User",
-			"email": email,
-			"first_name": full_name,
-			"enabled": 1,
-			"new_password": random_string(10),
-			"user_type": "Website User"
-		})
-		user.ignore_permissions = True
-		user.insert()
-		return _("Registration Details Emailed.")
+def sign_up(args):
+	args=eval(args)
+	from frappe.utils import get_url, cstr
+	import json
+	import requests
+	frappe.errprint(get_url())
+	if get_url()=='http://demo.letzerp.com':
+		#for time being insterted demo leds in db  need to create its lead from web service
+		frappe.db.sql("""insert into `tabDemo Sites` (email,full_name,domain_name,company_name) values(%s,%s,%s,%s);""",(args['email'],args['full_name'],args['subdomain'],args['company_name']))
+		login_details = {'usr': 'administrator', 'pwd': 'admin'}
+		url = 'http://letzerp.com/api/method/login'
+		headers = {'content-type': 'application/x-www-form-urlencoded'}
+		frappe.errprint([url, 'data='+json.dumps(login_details)])
+		#response = requests.post(url, data='data='+json.dumps(login_details))
+		#frappe.errprint(response.text)
+		url = 'http://letzerp.com/api/resource/lead'
+		headers = {'content-type': 'application/x-www-form-urlencoded'}
+		data={}
+		data['lead_name']=args['full_name']
+		data['company_name']=args['company_name']
+		data['email_id']=args['email']
+		frappe.errprint('data='+json.dumps(data))
+		# response = requests.post(url, data='data='+json.dumps(data), headers=headers)
+		# frappe.errprint(response)
+		# frappe.errprint(response.text)
+	return _("Registration Details will be send on your email id soon. ")
 
 @frappe.whitelist(allow_guest=True)
 def reset_password(user):
