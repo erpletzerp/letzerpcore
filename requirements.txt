@@ -1,4 +1,5 @@
 chardet
+virtualenv==12.0.7
 cssmin
 dropbox
 gunicorn
