@@ -329,7 +329,6 @@ def sign_up(args):
 	import json
 	import requests
 	if get_url()=='http://demo.letzerp.com':
-		
 		#frappe.db.sql("""insert into `tabDemo Sites` (email,full_name,domain_name,company_name) values(%s,%s,%s,%s);""",(args['email'],args['full_name'],args['subdomain'],args['company_name']))
 		s = requests.session()
 		login_details = {'usr': 'administrator', 'pwd': 'admin'}
@@ -337,14 +336,11 @@ def sign_up(args):
 		headers = {'content-type': 'application/x-www-form-urlencoded'}
 		# frappe.errprint([url, 'data='+json.dumps(login_details)])
 		response = s.post(url)
-		# frappe.errprint(response.text)
-		domain = args['subdomain']+'.letzerp.com'
-		frappe.errprint(domain)
-		check_domain=frappe.db.sql("""select name from `tabLead` where domain_name=%s""",(domain),as_list=1)
-		frappe.errprint(check_domain)
-		frappe.errprint(check_domain[0][0])
-		if check_domain[0][0]:
-			return (_("Domain already exist for same name..Please choose another domain."))
+		url='http://letzerp.com/api/resource/Lead/?fields=["domain_name", "name"]&filters=[["Lead", "domain_name", "=", "%s"]]'%(args['subdomain']+'.letzerp.com')
+		requests= s.get(url, headers=headers)
+		lead_dict=json.loads(requests.text)
+		if len(lead_dict['data']) > 0 :
+			return (_("Domain already exist with same name..Please choose another domain..!"))
 		else:
 			url = 'http://letzerp.com/api/resource/Lead'
 			headers = {'content-type': 'application/x-www-form-urlencoded'}

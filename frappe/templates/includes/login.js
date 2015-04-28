@@ -50,9 +50,9 @@ login.bind_events = function() {
 						args:{'args':args},
 						callback: function(r) {
 							alert(r.message);
-							// if r.message=="Registration Details will be send on your email id soon. "{
-							window.location.reload();
-							// }
+							if (r.message=='Registration Details will be send on your email id soon. '){
+								window.location.reload();
+							}
 						}
 		});
 		
