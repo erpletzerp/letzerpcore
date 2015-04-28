@@ -328,27 +328,31 @@ def sign_up(args):
 	from frappe.utils import get_url, cstr
 	import json
 	import requests
-	frappe.errprint(get_url())
 	if get_url()=='http://demo.letzerp.com':
-		#for time being insterted demo leds in db  need to create its lead from web service
-		frappe.db.sql("""insert into `tabDemo Sites` (email,full_name,domain_name,company_name) values(%s,%s,%s,%s);""",(args['email'],args['full_name'],args['subdomain'],args['company_name']))
+		#frappe.db.sql("""insert into `tabDemo Sites` (email,full_name,domain_name,company_name) values(%s,%s,%s,%s);""",(args['email'],args['full_name'],args['subdomain'],args['company_name']))
+		s = requests.session()
 		login_details = {'usr': 'administrator', 'pwd': 'admin'}
-		url = 'http://letzerp.com/api/method/login'
+		url = 'http://letzerp.com/api/method/login?usr=administrator&pwd=admin'
 		headers = {'content-type': 'application/x-www-form-urlencoded'}
-		frappe.errprint([url, 'data='+json.dumps(login_details)])
-		#response = requests.post(url, data='data='+json.dumps(login_details))
-		#frappe.errprint(response.text)
-		url = 'http://letzerp.com/api/resource/lead'
-		headers = {'content-type': 'application/x-www-form-urlencoded'}
-		data={}
-		data['lead_name']=args['full_name']
-		data['company_name']=args['company_name']
-		data['email_id']=args['email']
-		frappe.errprint('data='+json.dumps(data))
-		# response = requests.post(url, data='data='+json.dumps(data), headers=headers)
-		# frappe.errprint(response)
-		# frappe.errprint(response.text)
-	return _("Registration Details will be send on your email id soon. ")
+		# frappe.errprint([url, 'data='+json.dumps(login_details)])
+		response = s.post(url)
+		url='http://letzerp.com/api/resource/Lead/?fields=["domain_name", "name"]&filters=[["Lead", "domain_name", "=", "%s"]]'%(args['subdomain']+'.letzerp.com')
+		requests= s.get(url, headers=headers)
+		lead_dict=json.loads(requests.text)
+		if len(lead_dict['data']) > 0 :
+			return (_("Domain already exist with same name..Please choose another domain..!"))
+		else:
+			url = 'http://letzerp.com/api/resource/Lead'
+			headers = {'content-type': 'application/x-www-form-urlencoded'}
+			data={}
+			data['lead_name']=args['full_name']
+			data['company_name']=args['company_name']
+			data['email_id']=args['email']
+			data['domain_name']=args['subdomain']+'.letzerp.com'
+			# frappe.errprint('data='+json.dumps(data))
+			response = s.post(url, data='data='+json.dumps(data), headers=headers)
+			# frappe.errprint(response.text)
+			return (_("Registration Details will be send on your email id soon. "))
 
 @frappe.whitelist(allow_guest=True)
 def reset_password(user):
