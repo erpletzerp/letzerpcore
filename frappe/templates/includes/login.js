@@ -34,6 +34,7 @@ login.bind_events = function() {
 	$(".form-signup").on("submit", function(event) {
 		event.preventDefault();
 		var args = {};
+		console.log("signup");
 		args.cmd = "frappe.core.doctype.user.user.sign_up";
 		args.subdomain = ($("#subdomain").val() || "").trim();
 		args.company_name = ($("#company_name").val() || "").trim();
@@ -48,10 +49,13 @@ login.bind_events = function() {
 						method: "frappe.core.doctype.user.user.sign_up",
 						args:{'args':args},
 						callback: function(r) {
-							alert("Registeratin detail will be sent on your email id soon...!");
+							alert(r.message);
+							// if r.message=="Registration Details will be send on your email id soon. "{
+							window.location.reload();
+							// }
 						}
 		});
-		window.location.reload();
+		
 	});
 
 	$(".form-forgot").on("submit", function(event) {
@@ -100,7 +104,6 @@ login.signup = function() {
 // Login
 login.call = function(args) {
 	$('.btn-primary').prop("disabled", true);
-	console.log(['in login.call args-',args])
 	$.ajax({
 		type: "POST",
 		url: "/",
@@ -120,10 +123,8 @@ login.login_handlers = (function() {
 			}
 			var message = data._server_messages
 				? JSON.parse(data._server_messages).join("\n") : default_message;
-			frappe.msgprint(message);
 		};
 	}
-
 	var login_handlers = {
 		200: function(data) {
 			if(data.message=="Logged In") {
@@ -153,7 +154,6 @@ login.login_handlers = (function() {
 					window.location.href = "/index";
 				}
 			} else if(["#signup", "#forgot"].indexOf(window.location.hash)!==-1) {
-				frappe.msgprint(data.message);
 			}
 		},
 		401: get_error_handler(__("Invalid Login")),
