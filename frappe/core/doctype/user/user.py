@@ -329,12 +329,13 @@ def sign_up(args):
 	import json
 	import requests
 	if get_url()=='http://demo.letzerp.com':
+		#frappe.errprint(['url',get_url()])
 		#frappe.db.sql("""insert into `tabDemo Sites` (email,full_name,domain_name,company_name) values(%s,%s,%s,%s);""",(args['email'],args['full_name'],args['subdomain'],args['company_name']))
 		s = requests.session()
 		login_details = {'usr': 'administrator', 'pwd': 'admin'}
 		url = 'http://letzerp.com/api/method/login?usr=administrator&pwd=admin'
 		headers = {'content-type': 'application/x-www-form-urlencoded'}
-		# frappe.errprint([url, 'data='+json.dumps(login_details)])
+		#frappe.errprint([url, 'data='+json.dumps(login_details)])
 		response = s.post(url)
 		url='http://letzerp.com/api/resource/Lead/?fields=["domain_name", "name"]&filters=[["Lead", "domain_name", "=", "%s"]]'%(args['subdomain']+'.letzerp.com')
 		requests= s.get(url, headers=headers)
