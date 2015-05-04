@@ -338,21 +338,23 @@ def sign_up(args):
 		response = s.post(url)
 		url='http://letzerp.com/api/resource/Lead/?fields=["domain_name", "name"]&filters=[["Lead", "domain_name", "=", "%s"]]'%(args['subdomain']+'.letzerp.com')
 		requests= s.get(url, headers=headers)
-		lead_dict=json.loads(requests.text)
-		if len(lead_dict['data']) > 0 :
-			return (_("Domain already exist with same name..Please choose another domain..!"))
-		else:
-			url = 'http://letzerp.com/api/resource/Lead'
-			headers = {'content-type': 'application/x-www-form-urlencoded'}
-			data={}
-			data['lead_name']=args['full_name']
-			data['company_name']=args['company_name']
-			data['email_id']=args['email']
-			data['domain_name']=args['subdomain']+'.letzerp.com'
-			# frappe.errprint('data='+json.dumps(data))
-			response = s.post(url, data='data='+json.dumps(data), headers=headers)
-			# frappe.errprint(response.text)
-			return (_("Registration Details will be send on your email id soon. "))
+		if requests.text :
+			frappe.errprint(requests.text)
+			lead_dict=json.loads(requests.text)
+			if len(lead_dict['data']) > 0 :
+				return (_("Domain already exist with same name..Please choose another domain..!"))
+			else:
+				url = 'http://letzerp.com/api/resource/Lead'
+				headers = {'content-type': 'application/x-www-form-urlencoded'}
+				data={}
+				data['lead_name']=args['full_name']
+				data['company_name']=args['company_name']
+				data['email_id']=args['email']
+				data['domain_name']=args['subdomain']+'.letzerp.com'
+				# frappe.errprint('data='+json.dumps(data))
+				response = s.post(url, data='data='+json.dumps(data), headers=headers)
+				# frappe.errprint(response.text)
+				return (_("Registration Details will be send on your email id soon. "))
 
 @frappe.whitelist(allow_guest=True)
 def reset_password(user):
