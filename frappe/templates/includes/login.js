@@ -34,7 +34,7 @@ login.bind_events = function() {
 	$(".form-signup").on("submit", function(event) {
 		event.preventDefault();
 		var args = {};
-		console.log("signup");
+		//console.log("signup");
 		args.cmd = "frappe.core.doctype.user.user.sign_up";
 		args.subdomain = ($("#subdomain").val() || "").trim();
 		args.company_name = ($("#company_name").val() || "").trim();

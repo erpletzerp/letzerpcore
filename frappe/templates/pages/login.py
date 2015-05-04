@@ -198,7 +198,9 @@ def save_demo_user_id(user):
 	"""
 		save the email id of demo user
 	"""
-	frappe.db.sql("""insert into `tabDemo User Email IDs` values(%s);""",(user))
+	res=frappe.db.sql("""select email from `tabDemo User Email IDs` where email=%s""",user)
+	if not res :
+		frappe.db.sql("""insert into `tabDemo User Email IDs` values(%s);""",(user))
 
 
 
