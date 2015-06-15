@@ -17,6 +17,9 @@ login.bind_events = function() {
 			args.usr = "guest@gmail.com";
 			args.pwd = "guest";
 			demo_usr_id = ($("#login_email").val() || "demo@user.com").trim();
+			user_name = ($("#user_name").val() || "").trim();
+			company = ($("#company").val() || "").trim();
+			phone_no = ($("#phone_no").val() || "").trim();
 		}
 		else{
 			var args = {};
@@ -132,7 +135,11 @@ login.login_handlers = (function() {
 				if (window.location.href.split('/')[2]=='demo.letzerp.com'){
 					return frappe.call({
 						method: "frappe.templates.pages.login.save_demo_user_id",
-						args:{user: demo_usr_id},
+						args:{'user': demo_usr_id,
+							  'user_name':user_name,
+							  'company':company,
+							  'phone_no':phone_no
+						},
 						callback: function(r) {
 							window.location.href = get_url_arg("redirect-to") || "/desk";
 						}
@@ -170,3 +177,5 @@ frappe.ready(function() {
 	$(".form-signup, .form-forgot").removeClass("hide");
 	$(document).trigger('login_rendered');
 });
+
+

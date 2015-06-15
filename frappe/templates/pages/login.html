@@ -26,8 +26,17 @@
 
 		<!-- {{ frappe.get_url()=='http://demo.letzerp.com' }} -->
 		{%- if frappe.get_url()=='http://demo.letzerp.com' -%}
+			<input type="text" id="user_name"
+				class="form-control" placeholder="{{ _('User Name') }}" required>
+			<br>
 			<input type="text" id="login_email"
-				class="form-control" placeholder="{{ _('Email address (Optional)') }}" autofocus>
+				class="form-control" placeholder="{{ _('Email address') }}" required>
+			<br>
+			<input type="text" id="company"
+				class="form-control" placeholder="{{ _('Company Name') }}" required>
+			<br>
+			<input type="text" id="phone_no"
+				class="form-control" placeholder="{{ _('Phone No.') }}" autofocus>
 			<br>
 			<button class="btn btn-lg btn-default btn-block btn-login" type="submit">{{ _("Launch Demo") }}</button>
 			<div style="margin-top: 15px">
