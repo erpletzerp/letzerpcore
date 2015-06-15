@@ -7,7 +7,7 @@ app_description = "Full Stack Web Application Framework in Python"
 app_icon = "assets/frappe/images/LetzERP.svg"
 app_version = "5.0.0-alpha"
 app_color = "#3498db"
-app_email = "support@frappe.io"
+app_email = "support@indictranstech.com"
 
 before_install = "frappe.utils.install.before_install"
 after_install = "frappe.utils.install.after_install"

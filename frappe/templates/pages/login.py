@@ -6,6 +6,7 @@ import frappe
 import json
 import frappe.utils
 from frappe import _
+from frappe import throw, _, msgprint
 
 class SignupDisabledError(frappe.PermissionError): pass
 
@@ -194,13 +195,14 @@ def login_oauth_user(data=None, provider=None, email_id=None, key=None):
 	frappe.db.commit()
 
 @frappe.whitelist()
-def save_demo_user_id(user):
+def save_demo_user_id(user,user_name,company,phone_no):
 	"""
 		save the email id of demo user
 	"""
-	res=frappe.db.sql("""select email from `tabDemo User Email IDs` where email=%s""",user)
+	
+	res=frappe.db.sql("""select email from `tabDemo User Email IDs` where email='%s'"""%(user),debug=1)
 	if not res :
-		frappe.db.sql("""insert into `tabDemo User Email IDs` values(%s);""",(user))
+		frappe.db.sql("""insert into `tabDemo User Email IDs` (email,user_name,company,phone_no) values('%s','%s','%s','%s');""" %(user,user_name,company,phone_no),debug=1)
 
 
 
@@ -255,3 +257,22 @@ def update_oauth_user(user, data, provider):
 		user.ignore_permissions = True
 		user.no_welcome_mail = True
 		user.save()
+
+@frappe.whitelist(allow_guest=True)
+def send_email(user_name,email):
+	from frappe.utils import random_string, get_url
+	if not user_name or not email:
+		frappe.throw(_("User Name or Email missing.Please enter both User Name and Email..."))
+	else:
+		content = """Dear %s, \n
+		 	Please refer following link for letzerp broucher. \n 
+		 	%s \n 
+		 	\n
+		 	Regards, \n 
+		 	LetzERP"""%(user_name,get_url("/files/letzERP_Broucher.pdf"))
+		frappe.sendmail(recipients=email, content=content, subject='LetzERP Broucher')
+		dtl = frappe.new_doc("Broucher Details")
+		dtl.email_id = email
+		dtl.user_name = user_name
+		dtl.insert()
+		# frappe.db.sql("""insert into `tabBroucher Details` (email_id,user_name) values('%s','%s');""" %(email,user_name))
