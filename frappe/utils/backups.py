@@ -128,7 +128,7 @@ def get_backup():
 		Toos > Download Backup
 	"""
 	#if verbose: print frappe.db.cur_db_name + " " + conf.db_password
-	#delete_temp_backups()
+	delete_temp_backups()
 	odb = BackupGenerator(frappe.conf.db_name, frappe.conf.db_name,\
 						  frappe.conf.db_password, db_host = frappe.db.host)
 	odb.get_backup()
@@ -143,7 +143,7 @@ def scheduled_backup(older_than=6, ignore_files=False, backup_path_db=None, back
 	return odb
 
 def new_backup(older_than=6, ignore_files=False, backup_path_db=None, backup_path_files=None):
-	#delete_temp_backups(older_than=168)
+	delete_temp_backups(older_than=168)
 	odb = BackupGenerator(frappe.conf.db_name, frappe.conf.db_name,\
 						  frappe.conf.db_password,
 						  backup_path_db=backup_path_db, backup_path_files=backup_path_files, db_host = frappe.db.host)
