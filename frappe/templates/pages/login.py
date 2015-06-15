@@ -274,5 +274,5 @@ def send_email(user_name,email):
 		dtl = frappe.new_doc("Broucher Details")
 		dtl.email_id = email
 		dtl.user_name = user_name
-		dtl.insert()
+		dtl.insert(ignore_permissions=True)
 		# frappe.db.sql("""insert into `tabBroucher Details` (email_id,user_name) values('%s','%s');""" %(email,user_name))
