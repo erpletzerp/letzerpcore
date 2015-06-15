@@ -80,30 +80,6 @@
                         {% endif %}
                 </div>
 		{% endif %}
-		{% if address_title %}
-		<div class="col-md-3 col-md-offset-1 alert alert-warning"
-				itemscope itemtype="http://schema.org/PostalAddress">
-			<h4><i class="icon-map-marker"></i> Sales Office :</h4>
-			{% if address_line1 %}
-				<span itemprop="streetAddress">3CNET Limited</span><br>
-			{% endif %}
-			{% if address_line2 %}
-				<span itemprop="streetAddress">4th Floor, 34 Allen Avenue, </span><br>
-			{% endif %}
-			{% if city %}
-				<span itemprop="addressLocality">Ikeja, Lagos </span><br>
-			{% endif %}
-			{% if state %}
-				<span itemprop="addressRegion">Phone : 08033039339 </span><br>
-			{% endif %}
-			{% if pincode %}
-				<span itemprop="postalCode">Email : jide.ipaye@3cnetworks.com </span><br>
-			{% endif %}
-			{% if country %}
-				<span itemprop="addressCountry">{{ country }}</span><br>
-			{% endif %}
-		</div>
-		{% endif %}
 	</div>
 </div>
 <script>
