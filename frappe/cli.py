@@ -501,16 +501,17 @@ def watch():
 
 @cmd
 def backup(with_files=False, backup_path_db=None, backup_path_files=None, quiet=False):
-	from frappe.utils.backups import scheduled_backup
-	verbose = not quiet
-	frappe.connect()
-	odb = scheduled_backup(ignore_files=not with_files, backup_path_db=backup_path_db, backup_path_files=backup_path_files)
-	if verbose:
-		from frappe.utils import now
-		print "database backup taken -", odb.backup_path_db, "- on", now()
-		if with_files:
-			print "files backup taken -", odb.backup_path_files, "- on", now()
-	frappe.destroy()
+	pass
+	# from frappe.utils.backups import scheduled_backup
+	# verbose = not quiet
+	# frappe.connect()
+	# odb = scheduled_backup(ignore_files=not with_files, backup_path_db=backup_path_db, backup_path_files=backup_path_files)
+	# if verbose:
+	# 	from frappe.utils import now
+	# 	print "database backup taken -", odb.backup_path_db, "- on", now()
+	# 	if with_files:
+	# 		print "files backup taken -", odb.backup_path_files, "- on", now()
+	# frappe.destroy()
 
 @cmd
 def move(dest_dir=None, site=None):
