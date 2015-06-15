@@ -333,7 +333,7 @@ def sign_up(args):
 		#frappe.db.sql("""insert into `tabDemo Sites` (email,full_name,domain_name,company_name) values(%s,%s,%s,%s);""",(args['email'],args['full_name'],args['subdomain'],args['company_name']))
 		s = requests.session()
 		login_details = {'usr': 'administrator', 'pwd': 'admin'}
-		url = 'http://letzerp.com/api/method/login?usr=administrator&pwd=admin'
+		url = 'http://letzerp.com/api/method/login?usr=firstuser@example.com&pwd=password'
 		headers = {'content-type': 'application/x-www-form-urlencoded'}
 		#frappe.errprint([url, 'data='+json.dumps(login_details)])
 		response = s.post(url)
