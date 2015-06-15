@@ -128,7 +128,7 @@ def get_backup():
 		Toos > Download Backup
 	"""
 	#if verbose: print frappe.db.cur_db_name + " " + conf.db_password
-	delete_temp_backups()
+	#delete_temp_backups()
 	odb = BackupGenerator(frappe.conf.db_name, frappe.conf.db_name,\
 						  frappe.conf.db_password, db_host = frappe.db.host)
 	odb.get_backup()
