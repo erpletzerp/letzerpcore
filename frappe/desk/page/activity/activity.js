@@ -1,9 +1,9 @@
-// Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // License: See license.txt
 
 frappe.provide("frappe.activity");
 
-frappe.pages['activity'].onload = function(wrapper) {
+frappe.pages['activity'].on_page_load = function(wrapper) {
 	var me = this;
 
 	frappe.require('assets/frappe/js/lib/flot/jquery.flot.js');

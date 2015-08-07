@@ -16,7 +16,14 @@
 	border-bottom: 1px solid @border-color;
 }
 
-.form-page-header {
+.form-inner-toolbar {
+	padding: 10px 15px;
+	background-color: @light-bg;
+	// border-bottom: 1px dashed @border-color;
+	text-align: right;
+}
+
+.form-clickable-section {
 	border-top: 1px solid @border-color;
 	padding: 10px 15px;
 	background-color: @panel-bg;
@@ -34,13 +41,28 @@
 .form-section {
 	margin: 0px;
 	padding: 15px;
-}
-.modal-content .form-section {
-	padding: 0px;
+
+	.form-section-heading {
+		margin: 25px 0px 15px 0px;
+	}
 }
 
-.form-section:nth-child(even), .timeline-item:nth-child(even) {
+.empty-section {
+	display: none !important;
+}
+
+.shaded-section, .timeline-item:nth-child(even) {
 	background-color: @light-bg;
+}
+
+.modal {
+	.form-layout {
+		margin: -15px;
+	}
+
+	.form-section {
+		padding: 7px;
+	}
 }
 
 .help ol {
@@ -49,38 +71,6 @@
 
 .field_description_top {
 	margin-bottom: 3px;
-}
-
-.sidebar-section li {
-	margin-top: 5px;
-	font-size: 12px;
-}
-
-.sidebar-section {
-	margin-top: 25px;
-}
-.sidebar-section:last-child {
-	margin-bottom: 20px;
-}
-.sidebar-section h6 {
-	text-transform: uppercase;
-	color: @text-muted;
-	font-size: 10px;
-	margin-bottom: 4px;
-}
-
-.sidebar-section .close {
-	font-size: 18px;
-	margin-bottom: -2px;
-}
-
-
-.sidebar-section h6 .label {
-	font-size: 12px;
-}
-
-.sidebar-section.sidebar-comments {
-	cursor: pointer;
 }
 
 .user-actions {
@@ -94,18 +84,6 @@
 	background-color: #e74c3c;
 }
 
-.comm-header {
-	font-weight: bold;
-	height: 20px;
-	overflow: hidden;
-}
-
-.comm-header > div {
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	overflow: hidden;
-}
-
 .timeline {
 	border: 1px solid @border-color;
 	margin: 30px 0px;
@@ -113,13 +91,31 @@
 
 .timeline-item {
 	margin-top: 0px;
-	padding: 15px 30px;
+	padding: 15px 30px 7px;
+
+	.icon-fixed-width {
+		text-align: center;
+	}
+
+	border-bottom: 1px solid @border-color;
+
+	blockquote {
+		font-size: inherit;
+	}
+}
+
+.timeline-item:last-child {
+	border-bottom: 0px;
 }
 
 .timeline-item .reply {
-    margin-top: 5px;
-    // padding-left: 24px;
-    // border-left: 8px solid #d8dfe6;
+	margin-top: 5px;
+	// padding-left: 24px;
+	// border-left: 8px solid #d8dfe6;
+}
+
+.timeline-item .reply-link {
+	padding: 0px 7px;
 }
 
 .timeline-item h6, .timeline-head h6 {
@@ -128,7 +124,7 @@
 
 .timeline-head {
 	background-color: @light-bg;
-	padding: 30px 30px 15px 30px;
+	padding: 15px 30px;
 	border-bottom: 1px solid @border-color;
 }
 
@@ -137,14 +133,13 @@
 	font-weight: bold;
 }
 
-
 .control-label, .grid-heading-row {
 	color: @text-muted;
 	font-size: 85%;
 }
 
 .control-label {
-	margin-bottom: 2px;
+	margin-bottom: 5px;
 }
 
 .like-disabled-input {
@@ -156,4 +151,56 @@
 
 .like-disabled-input.for-description {
 	font-weight: normal;
+}
+
+.frappe-control {
+	margin-bottom: 10px;
+
+	.help-box {
+		margin-top: 3px;
+	}
+}
+
+.hide-control {
+	display: none !important;
+}
+
+.shared-user {
+	margin-bottom: 10px;
+}
+
+.linked-with-dialog {
+	width: 75%;
+
+	.panel-body {
+		padding: 0px;
+	}
+
+	.form-section {
+		padding-top: 15px;
+	}
+}
+
+.attach-missing-image,
+.attach-image-display {
+	cursor: pointer;
+}
+
+@media (min-width: 768px) {
+	.layout-main .form-column.col-sm-12 > form > .input-max-width {
+		max-width: 50%;
+		padding-right: 15px;
+	}
+
+	// don't max-width when in form-grid with half width
+	.col-sm-6 .form-grid .form-column.col-sm-12 > form > .input-max-width {
+		max-width: none;
+		padding-right: 0px;
+	}
+}
+
+select.form-control {
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
 }

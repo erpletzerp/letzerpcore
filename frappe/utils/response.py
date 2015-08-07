@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
 from __future__ import unicode_literals
@@ -11,7 +11,6 @@ from frappe import _
 import frappe.model.document
 import frappe.utils
 import frappe.sessions
-import frappe.model.utils
 import werkzeug.utils
 from werkzeug.local import LocalProxy
 from werkzeug.wsgi import wrap_file

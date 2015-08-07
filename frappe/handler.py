@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
 from __future__ import unicode_literals
@@ -11,8 +11,12 @@ import frappe.desk.form.run_method
 from frappe.utils.response import build_response
 
 @frappe.whitelist(allow_guest=True)
-def startup():
-	frappe.response.update(frappe.sessions.get())
+def version():
+	return frappe.__version__
+
+@frappe.whitelist()
+def ping():
+	return "pong"
 
 @frappe.whitelist()
 def runserverobj(method, docs=None, dt=None, dn=None, arg=None, args=None):
@@ -27,8 +31,7 @@ def logout():
 def web_logout():
 	frappe.local.login_manager.logout()
 	frappe.db.commit()
-	frappe.respond_as_web_page("Logged Out", """<p>You have been logged out.</p>
-		<p><a href='index'>Back to Home</a></p>""")
+	frappe.respond_as_web_page("Logged Out", """<p><a href="/index" class="text-muted">Back to Home</a></p>""")
 
 @frappe.whitelist(allow_guest=True)
 def run_custom_method(doctype, name, custom_method):

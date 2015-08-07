@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
 from __future__ import unicode_literals
@@ -15,7 +15,8 @@ from frappe.utils import cint, cstr, flt
 from  frappe.core.page.data_import_tool.data_import_tool import get_data_keys
 
 @frappe.whitelist()
-def upload(rows = None, submit_after_import=None, ignore_encoding_errors=False, overwrite=None, ignore_links=False):
+def upload(rows = None, submit_after_import=None, ignore_encoding_errors=False, overwrite=None,
+	ignore_links=False, pre_process=None):
 	"""upload data"""
 	frappe.flags.mute_emails = True
 	# extra input params
@@ -138,6 +139,15 @@ def upload(rows = None, submit_after_import=None, ignore_encoding_errors=False, 
 	def main_doc_empty(row):
 		return not (row and ((len(row) > 1 and row[1]) or (len(row) > 2 and row[2])))
 
+	users = frappe.db.sql_list("select name from tabUser")
+	def prepare_for_insert(doc):
+		# don't block data import if user is not set
+		# migrating from another system
+		if not doc.owner in users:
+			doc.owner = frappe.session.user
+		if not doc.modified_by in users:
+			doc.modified_by = frappe.session.user
+
 	# header
 	if not rows:
 		rows = read_csv_content_from_uploaded_file(ignore_encoding_errors)
@@ -169,8 +179,6 @@ def upload(rows = None, submit_after_import=None, ignore_encoding_errors=False, 
 	check_data_length()
 	make_column_map()
 
-	frappe.db.begin()
-
 	if overwrite==None:
 		overwrite = params.get('overwrite')
 
@@ -193,6 +201,9 @@ def upload(rows = None, submit_after_import=None, ignore_encoding_errors=False, 
 		doc = None
 
 		doc = get_doc(row_idx)
+		if pre_process:
+			pre_process(doc)
+
 		try:
 			frappe.local.message_log = []
 			if parentfield:
@@ -205,12 +216,14 @@ def upload(rows = None, submit_after_import=None, ignore_encoding_errors=False, 
 				if overwrite and doc["name"] and frappe.db.exists(doctype, doc["name"]):
 					original = frappe.get_doc(doctype, doc["name"])
 					original.update(doc)
-					original.ignore_links = ignore_links
+					original.flags.ignore_links = ignore_links
 					original.save()
 					ret.append('Updated row (#%d) %s' % (row_idx + 1, getlink(original.doctype, original.name)))
+					doc = original
 				else:
 					doc = frappe.get_doc(doc)
-					doc.ignore_links = ignore_links
+					prepare_for_insert(doc)
+					doc.flags.ignore_links = ignore_links
 					doc.insert()
 					ret.append('Inserted row (#%d) %s' % (row_idx + 1, getlink(doc.doctype, doc.name)))
 				if submit_after_import:

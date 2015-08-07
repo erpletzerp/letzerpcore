@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 """
 globals attached to frappe module
@@ -87,7 +87,18 @@ def init(site, sites_path=None):
 	local.error_log = []
 	local.message_log = []
 	local.debug_log = []
-	local.flags = _dict({})
+	local.flags = _dict({
+		"ran_schedulers": [],
+		"redirect_location": "",
+		"in_install_db": False,
+		"in_install_app": False,
+		"in_import": False,
+		"in_test": False,
+		"mute_messages": False,
+		"ignore_links": False,
+		"mute_emails": False,
+		"has_dataurl": False,
+	})
 	local.rollback_observers = []
 	local.test_objects = {}
 
@@ -101,12 +112,18 @@ def init(site, sites_path=None):
 
 	local.conf = _dict(get_site_config())
 	local.lang = local.conf.lang or "en"
+	local.lang_full_dict = None
 
 	local.module_app = None
 	local.app_modules = None
+	local.system_settings = None
 
 	local.user = None
+	local.user_obj = None
+	local.session = None
 	local.role_permissions = {}
+	local.valid_columns = {}
+	local.new_doc_templates = {}
 
 	local.jenv = None
 	local.jloader =None
@@ -163,7 +180,7 @@ def cache():
 	global redis_server
 	if not redis_server:
 		from frappe.utils.redis_wrapper import RedisWrapper
-		redis_server = RedisWrapper(conf.get("redis_server") or "localhost")
+		redis_server = RedisWrapper.from_url(conf.get("cache_redis_server") or "redis://localhost:11311")
 	return redis_server
 
 def get_traceback():
@@ -202,21 +219,22 @@ def msgprint(msg, small=0, raise_exception=0, as_table=False):
 	:param raise_exception: [optional] Raise given exception and show message.
 	:param as_table: [optional] If `msg` is a list of lists, render as HTML table.
 	"""
+	from utils import cstr, encode
+
 	def _raise_exception():
 		if raise_exception:
 			if flags.rollback_on_exception:
 				db.rollback()
 			import inspect
 			if inspect.isclass(raise_exception) and issubclass(raise_exception, Exception):
-				raise raise_exception, msg
+				raise raise_exception, encode(msg)
 			else:
-				raise ValidationError, msg
+				raise ValidationError, encode(msg)
 
 	if flags.mute_messages:
 		_raise_exception()
 		return
 
-	from utils import cstr
 	if as_table and type(msg) in (list, tuple):
 		msg = '<table border="1px" style="border-collapse: collapse" cellpadding="2px">' + ''.join(['<tr>'+''.join(['<td>%s</td>' % c for c in r])+'</tr>' for r in msg]) + '</table>'
 
@@ -249,15 +267,32 @@ def set_user(username):
 	"""Set current user.
 
 	:param username: **User** name to set as current user."""
-	from frappe.utils.user import User
 	local.session.user = username
 	local.session.sid = username
 	local.cache = {}
 	local.form_dict = _dict()
 	local.jenv = None
 	local.session.data = _dict()
-	local.user = User(username)
 	local.role_permissions = {}
+	local.new_doc_templates = {}
+	local.user_obj = None
+
+def get_user():
+	from frappe.utils.user import User
+	if not local.user_obj:
+		local.user_obj = User(local.session.user)
+	return local.user_obj
+
+def get_roles(username=None):
+	"""Returns roles of current user."""
+	if not local.session:
+		return ["Guest"]
+
+	if username:
+		import frappe.utils.user
+		return frappe.utils.user.get_roles(username)
+	else:
+		return get_user().get_roles()
 
 def get_request_header(key, default=None):
 	"""Return HTTP request header.
@@ -267,8 +302,10 @@ def get_request_header(key, default=None):
 	return request.headers.get(key, default)
 
 def sendmail(recipients=(), sender="", subject="No Subject", message="No Message",
-		as_markdown=False, bulk=False, ref_doctype=None, ref_docname=None,
-		add_unsubscribe_link=False, attachments=None, content=None, doctype=None, name=None, reply_to=None):
+		as_markdown=False, bulk=False, reference_doctype=None, reference_name=None,
+		unsubscribe_method=None, unsubscribe_params=None, unsubscribe_message=None,
+		attachments=None, content=None, doctype=None, name=None, reply_to=None,
+		cc=(), message_id=None, as_bulk=False, send_after=None):
 	"""Send email using user's default **Email Account** or global default **Email Account**.
 
 
@@ -278,28 +315,33 @@ def sendmail(recipients=(), sender="", subject="No Subject", message="No Message
 	:param message: (or `content`) Email Content.
 	:param as_markdown: Convert content markdown to HTML.
 	:param bulk: Send via scheduled email sender **Bulk Email**. Don't send immediately.
-	:param ref_doctype: (or `doctype`) Append as communication to this DocType.
-	:param ref_docname: (or `name`) Append as communication to this document name.
-	:param add_unsubscribe_link: Allow user to unsubscribe from these emails.
+	:param reference_doctype: (or `doctype`) Append as communication to this DocType.
+	:param reference_name: (or `name`) Append as communication to this document name.
+	:param unsubscribe_method: Unsubscribe url with options email, doctype, name. e.g. `/api/method/unsubscribe`
+	:param unsubscribe_params: Unsubscribe paramaters to be loaded on the unsubscribe_method [optional] (dict).
 	:param attachments: List of attachments.
 	:param reply_to: Reply-To email id.
+	:param message_id: Used for threading. If a reply is received to this email, Message-Id is sent back as In-Reply-To in received email.
+	:param send_after: Send after the given datetime.
 	"""
 
-	if bulk:
+	if bulk or as_bulk:
 		import frappe.email.bulk
 		frappe.email.bulk.send(recipients=recipients, sender=sender,
-			subject=subject, message=content or message, ref_doctype = doctype or ref_doctype,
-			ref_docname = name or ref_docname, add_unsubscribe_link=add_unsubscribe_link, attachments=attachments,
-			reply_to=reply_to)
-
+			subject=subject, message=content or message,
+			reference_doctype = doctype or reference_doctype, reference_name = name or reference_name,
+			unsubscribe_method=unsubscribe_method, unsubscribe_params=unsubscribe_params, unsubscribe_message=unsubscribe_message,
+			attachments=attachments, reply_to=reply_to, cc=cc, message_id=message_id, send_after=send_after)
 	else:
 		import frappe.email
 		if as_markdown:
 			frappe.email.sendmail_md(recipients, sender=sender,
-				subject=subject, msg=content or message, attachments=attachments, reply_to=reply_to)
+				subject=subject, msg=content or message, attachments=attachments, reply_to=reply_to,
+				cc=cc, message_id=message_id)
 		else:
 			frappe.email.sendmail(recipients, sender=sender,
-				subject=subject, msg=content or message, attachments=attachments, reply_to=reply_to)
+				subject=subject, msg=content or message, attachments=attachments, reply_to=reply_to,
+				cc=cc, message_id=message_id)
 
 logger = None
 whitelisted = []
@@ -363,22 +405,7 @@ def clear_cache(user=None, doctype=None):
 
 	frappe.local.role_permissions = {}
 
-def get_roles(username=None):
-	"""Returns roles of current user."""
-	if not local.session:
-		return ["Guest"]
-
-	return get_user(username).get_roles()
-
-def get_user(username):
-	"""Returns `frappe.utils.user.User` instance of given user."""
-	from frappe.utils.user import User
-	if not username or username == local.session.user:
-		return local.user
-	else:
-		return User(username)
-
-def has_permission(doctype, ptype="read", doc=None, user=None):
+def has_permission(doctype, ptype="read", doc=None, user=None, verbose=False):
 	"""Raises `frappe.PermissionError` if not permitted.
 
 	:param doctype: DocType for which permission is to be check.
@@ -386,15 +413,45 @@ def has_permission(doctype, ptype="read", doc=None, user=None):
 	:param doc: [optional] Checks User permissions for given doc.
 	:param user: [optional] Check for given user. Default: current user."""
 	import frappe.permissions
-	return frappe.permissions.has_permission(doctype, ptype, doc, user=user)
+	return frappe.permissions.has_permission(doctype, ptype, doc=doc, verbose=verbose, user=user)
+
+def has_website_permission(doctype, ptype="read", doc=None, user=None, verbose=False):
+	"""Raises `frappe.PermissionError` if not permitted.
+
+	:param doctype: DocType for which permission is to be check.
+	:param ptype: Permission type (`read`, `write`, `create`, `submit`, `cancel`, `amend`). Default: `read`.
+	:param doc: Checks User permissions for given doc.
+	:param user: [optional] Check for given user. Default: current user."""
+
+	if not user:
+		user = session.user
+
+	hooks = (get_hooks("has_website_permission") or {}).get(doctype, [])
+	if hooks:
+		for method in hooks:
+			result = call(get_attr(method), doc=doc, ptype=ptype, user=user, verbose=verbose)
+			# if even a single permission check is Falsy
+			if not result:
+				return False
+
+		# else it is Truthy
+		return True
+
+	else:
+		return False
 
 def is_table(doctype):
 	"""Returns True if `istable` property (indicating child Table) is set for given DocType."""
-	tables = cache().get_value("is_table")
-	if tables==None:
-		tables = db.sql_list("select name from tabDocType where ifnull(istable,0)=1")
-		cache().set_value("is_table", tables)
+	def get_tables():
+		return db.sql_list("select name from tabDocType where ifnull(istable,0)=1")
+
+	tables = cache().get_value("is_table", get_tables)
 	return doctype in tables
+
+def get_precision(doctype, fieldname, currency=None, doc=None):
+	"""Get precision for a given field"""
+	from frappe.model.meta import get_field_precision
+	return get_field_precision(get_meta(doctype).get_field(fieldname), doc, currency)
 
 def generate_hash(txt=None):
 	"""Generates random hash for given text + current timestamp + random string."""
@@ -408,14 +465,14 @@ def reset_metadata_version():
 	cache().set_value("metadata_version", v)
 	return v
 
-def new_doc(doctype, parent_doc=None, parentfield=None):
+def new_doc(doctype, parent_doc=None, parentfield=None, as_dict=False):
 	"""Returns a new document of the given DocType with defaults set.
 
 	:param doctype: DocType of the new document.
 	:param parent_doc: [optional] add to parent document.
 	:param parentfield: [optional] add against this `parentfield`."""
 	from frappe.model.create_new import get_new_doc
-	return get_new_doc(doctype, parent_doc, parentfield)
+	return get_new_doc(doctype, parent_doc, parentfield, as_dict=as_dict)
 
 def set_value(doctype, docname, fieldname, value):
 	"""Set document value. Calls `frappe.client.set_value`"""
@@ -441,12 +498,29 @@ def get_doc(arg1, arg2=None):
 	import frappe.model.document
 	return frappe.model.document.get_doc(arg1, arg2)
 
+def get_last_doc(doctype):
+	"""Get last created document of this type."""
+	d = get_all(doctype, ["name"], order_by="creation desc", limit_page_length=1)
+	if d:
+		return get_doc(doctype, d[0].name)
+	else:
+		raise DoesNotExistError
+
+def get_single(doctype):
+	"""Return a `frappe.model.document.Document` object of the given Single doctype."""
+	return get_doc(doctype, doctype)
+
 def get_meta(doctype, cached=True):
 	"""Get `frappe.model.meta.Meta` instance of given doctype name."""
 	import frappe.model.meta
 	return frappe.model.meta.get_meta(doctype, cached=cached)
 
-def delete_doc(doctype=None, name=None, force=0, ignore_doctypes=None, for_reload=False, ignore_permissions=False):
+def get_meta_module(doctype):
+	import frappe.modules
+	return frappe.modules.load_doctype_module(doctype)
+
+def delete_doc(doctype=None, name=None, force=0, ignore_doctypes=None, for_reload=False,
+	ignore_permissions=False, flags=None):
 	"""Delete a document. Calls `frappe.model.delete_doc.delete_doc`.
 
 	:param doctype: DocType of document to be delete.
@@ -456,12 +530,17 @@ def delete_doc(doctype=None, name=None, force=0, ignore_doctypes=None, for_reloa
 	:param for_reload: Call `before_reload` trigger before deleting.
 	:param ignore_permissions: Ignore user permissions."""
 	import frappe.model.delete_doc
-	frappe.model.delete_doc.delete_doc(doctype, name, force, ignore_doctypes, for_reload, ignore_permissions)
+	frappe.model.delete_doc.delete_doc(doctype, name, force, ignore_doctypes, for_reload,
+		ignore_permissions, flags)
 
 def delete_doc_if_exists(doctype, name):
 	"""Delete document if exists."""
 	if db.exists(doctype, name):
 		delete_doc(doctype, name)
+
+def reload_doctype(doctype, force=False):
+	"""Reload DocType from model (`[module]/[doctype]/[name]/[name].json`) files."""
+	reload_doc(scrub(db.get_value("DocType", doctype, "module")), "doctype", scrub(doctype), force=force)
 
 def reload_doc(module, dt=None, dn=None, force=False):
 	"""Reload Document from model (`[module]/[doctype]/[name]/[name].json`) files.
@@ -471,6 +550,7 @@ def reload_doc(module, dt=None, dn=None, force=False):
 	:param dn: Document name.
 	:param force: Reload even if `modified` timestamp matches.
 	"""
+
 	import frappe.modules
 	return frappe.modules.reload_doc(module, dt, dn, force=force)
 
@@ -533,40 +613,22 @@ def get_all_apps(with_frappe=False, with_internal_apps=True, sites_path=None):
 	if with_internal_apps:
 		apps.extend(get_file_items(os.path.join(local.site_path, "apps.txt")))
 	if with_frappe:
+		if "frappe" in apps:
+			apps.remove("frappe")
 		apps.insert(0, 'frappe')
 	return apps
 
-def get_installed_apps():
+def get_installed_apps(sort=False):
 	"""Get list of installed apps in current site."""
 	if getattr(flags, "in_install_db", True):
 		return []
+
 	installed = json.loads(db.get_global("installed_apps") or "[]")
+
+	if sort:
+		installed = [app for app in get_all_apps(True) if app in installed]
+
 	return installed
-
-@whitelist()
-def get_versions():
-	"""Get versions of all installed apps.
-
-	Example:
-
-		{
-			"frappe": {
-				"title": "Frappe Framework",
-				"version": "5.0.0"
-			}
-		}"""
-	versions = {}
-	for app in get_installed_apps():
-		versions[app] = {
-			"title": get_hooks("app_title", app_name=app),
-			"description": get_hooks("app_description", app_name=app)
-		}
-		try:
-			versions[app]["version"] = get_attr(app + ".__version__")
-		except AttributeError:
-			versions[app]["version"] = '0.0.1'
-
-	return versions
 
 def get_hooks(hook=None, default=None, app_name=None):
 	"""Get hooks via `app/hooks.py`
@@ -576,7 +638,7 @@ def get_hooks(hook=None, default=None, app_name=None):
 	:param app_name: Filter by app."""
 	def load_app_hooks(app_name=None):
 		hooks = {}
-		for app in [app_name] if app_name else get_installed_apps():
+		for app in [app_name] if app_name else get_installed_apps(sort=True):
 			app = "frappe" if app=="webnotes" else app
 			try:
 				app_hooks = get_module(app + ".hooks")
@@ -623,7 +685,7 @@ def setup_module_map():
 		local.app_modules = _cache.get_value("app_modules")
 		local.module_app = _cache.get_value("module_app")
 
-	if not local.app_modules:
+	if not (local.app_modules and local.module_app):
 		local.module_app, local.app_modules = {}, {}
 		for app in get_all_apps(True):
 			if app=="webnotes": app="frappe"
@@ -639,10 +701,11 @@ def setup_module_map():
 
 def get_file_items(path, raise_not_found=False, ignore_empty_lines=True):
 	"""Returns items from text file as a list. Ignores empty lines."""
+	import frappe.utils
+
 	content = read_file(path, raise_not_found=raise_not_found)
 	if content:
-		# \ufeff is no-width-break, \u200b is no-width-space
-		content = content.replace("\ufeff", "").replace("\u200b", "").strip()
+		content = frappe.utils.strip(content)
 
 		return [p.strip() for p in content.splitlines() if (not ignore_empty_lines) or (p.strip() and not p.startswith("#"))]
 	else:
@@ -678,9 +741,13 @@ def call(fn, *args, **kwargs):
 		fnargs, varargs, varkw, defaults = inspect.getargspec(fn)
 
 	newargs = {}
-	for a in fnargs:
-		if a in kwargs:
+	for a in kwargs:
+		if (a in fnargs) or varkw:
 			newargs[a] = kwargs.get(a)
+
+	if "flags" in newargs:
+		del newargs["flags"]
+
 	return fn(*args, **newargs)
 
 def make_property_setter(args, ignore_validate=False, validate_fields_for_doctype=True):
@@ -696,8 +763,8 @@ def make_property_setter(args, ignore_validate=False, validate_fields_for_doctyp
 		'property_type': args.property_type or "Data",
 		'__islocal': 1
 	})
-	ps.ignore_validate = ignore_validate
-	ps.validate_fields_for_doctype = validate_fields_for_doctype
+	ps.flags.ignore_validate = ignore_validate
+	ps.flags.validate_fields_for_doctype = validate_fields_for_doctype
 	ps.insert()
 
 def import_doc(path, ignore_links=False, ignore_insert=False, insert=False):
@@ -720,6 +787,7 @@ def copy_doc(doc, ignore_no_copy=True):
 		d = doc
 
 	newdoc = get_doc(copy.deepcopy(d))
+
 	newdoc.name = None
 	newdoc.set("__islocal", 1)
 	newdoc.owner = None
@@ -826,6 +894,8 @@ def get_all(doctype, *args, **kwargs):
 		frappe.get_all("ToDo", fields=["*"], filters = {"description": ("like", "test%")})
 	"""
 	kwargs["ignore_permissions"] = True
+	if not "limit_page_length" in kwargs:
+		kwargs["limit_page_length"] = 0
 	return get_list(doctype, *args, **kwargs)
 
 def add_version(doc):
@@ -835,8 +905,12 @@ def add_version(doc):
 		"doctype": "Version",
 		"ref_doctype": doc.doctype,
 		"docname": doc.name,
-		"doclist_json": json.dumps(doc.as_dict(), indent=1, sort_keys=True)
+		"doclist_json": as_json(doc.as_dict())
 	}).insert(ignore_permissions=True)
+
+def as_json(obj, indent=1):
+	from frappe.utils.response import json_handler
+	return json.dumps(obj, indent=indent, sort_keys=True, default=json_handler)
 
 def get_test_records(doctype):
 	"""Returns list of objects from `test_records.json` in the given doctype's folder."""
@@ -856,7 +930,7 @@ def format_value(value, df, doc=None, currency=None):
 	import frappe.utils.formatters
 	return frappe.utils.formatters.format_value(value, df, doc, currency=currency)
 
-def get_print_format(doctype, name, print_format=None, style=None, as_pdf=False):
+def get_print(doctype, name, print_format=None, style=None, html=None, as_pdf=False):
 	"""Get Print Format for given document.
 
 	:param doctype: DocType of document.
@@ -872,27 +946,38 @@ def get_print_format(doctype, name, print_format=None, style=None, as_pdf=False)
 	local.form_dict.format = print_format
 	local.form_dict.style = style
 
-	html = build_page("print")
+	if not html:
+		html = build_page("print")
 
 	if as_pdf:
 		return get_pdf(html)
 	else:
 		return html
 
-def attach_print(doctype, name, file_name):
+def attach_print(doctype, name, file_name=None, print_format=None, style=None, html=None):
 	from frappe.utils import scrub_urls
 
+	if not file_name: file_name = name
+	file_name = file_name.replace(' ','').replace('/','-')
+
 	print_settings = db.get_singles_dict("Print Settings")
+
+	local.flags.ignore_print_permissions = True
+
 	if int(print_settings.send_print_as_pdf or 0):
-		return {
+		out = {
 			"fname": file_name + ".pdf",
-			"fcontent": get_print_format(doctype, name, as_pdf=True)
+			"fcontent": get_print(doctype, name, print_format=print_format, style=style, html=html, as_pdf=True)
 		}
 	else:
-		return {
+		out = {
 			"fname": file_name + ".html",
-			"fcontent": scrub_urls(get_print_format(doctype, name)).encode("utf-8")
+			"fcontent": scrub_urls(get_print(doctype, name, print_format=print_format, style=style, html=html)).encode("utf-8")
 		}
+
+	local.flags.ignore_print_permissions = False
+
+	return out
 
 logging_setup_complete = False
 def get_logger(module=None):

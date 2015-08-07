@@ -1,4 +1,4 @@
-// Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 
 frappe.provide("frappe.ui.form");
@@ -14,14 +14,19 @@ frappe.ui.form.Toolbar = Class.extend({
 		this.page.clear_user_actions();
 		this.show_title_as_dirty();
 		this.set_primary_action();
+		this.refresh_star();
 
 		if(this.frm.meta.hide_toolbar) {
 			this.page.hide_menu();
 		} else {
 			if(this.frm.doc.__islocal) {
 				this.page.hide_menu();
+				this.print_icon && this.print_icon.addClass("hide");
+				this.star_icon && this.star_icon.addClass("hide");
 			} else {
 				this.page.show_menu();
+				this.print_icon && this.print_icon.removeClass("hide");
+				this.star_icon && this.star_icon.removeClass("hide");
 			}
 		}
 	},
@@ -38,6 +43,9 @@ frappe.ui.form.Toolbar = Class.extend({
 		}
 		var me = this;
 		this.page.set_title(title);
+		if(this.frm.meta.title_field) {
+			frappe.utils.set_title(title + " - " + this.frm.docname);
+		}
 		this.set_indicator();
 	},
 	get_dropdown_menu: function(label) {
@@ -51,27 +59,41 @@ frappe.ui.form.Toolbar = Class.extend({
 			this.page.clear_indicator();
 		}
 	},
+	refresh_star: function() {
+		this.star_icon &&
+			this.star_icon.toggleClass("text-extra-muted not-starred",
+				!frappe.ui.is_starred(this.frm.doc))
+			.attr("data-doctype", this.frm.doctype)
+			.attr("data-name", this.frm.doc.name);
+	},
 	make_menu: function() {
 		var me = this;
 		var p = this.frm.perm[0];
 		var docstatus = cint(this.frm.doc.docstatus);
 
 		// Print
-		if(!me.frm.doc.__islocal && frappe.model.can_print(null, me.frm)) {
+		if(frappe.model.can_print(null, me.frm)) {
 			this.page.add_menu_item(__("Print"), function() {
 				me.frm.print_doc();}, true);
-			this.page.add_action_icon("icon-print", function() {
+			this.print_icon = this.page.add_action_icon("icon-print", function() {
 				me.frm.print_doc();});
 		}
 
+		// star
+		if(!this.frm.meta.issingle) {
+			this.star_icon = this.page.add_action_icon("icon-star", function() {
+				frappe.ui.toggle_star(me.star_icon, me.frm.doctype, me.frm.doc.name);
+			}).removeClass("text-muted").find(".icon-star").addClass("star-action");
+		}
+
 		// email
-		if(!me.frm.doc.__islocal && frappe.model.can_email(null, me.frm)) {
+		if(frappe.model.can_email(null, me.frm)) {
 			this.page.add_menu_item(__("Email"), function() {
 				me.frm.email_doc();}, true);
 		}
 
 		// Linked With
-		if(!me.frm.doc.__islocal && !me.frm.meta.issingle) {
+		if(!me.frm.meta.issingle) {
 			this.page.add_menu_item(__('Links'), function() {
 				me.show_linked_with();
 			}, true)
@@ -89,6 +111,10 @@ frappe.ui.form.Toolbar = Class.extend({
 				me.frm.rename_doc();}, true);
 		}
 
+		// reload
+		this.page.add_menu_item(__("Reload"), function() {
+			me.frm.reload_doc();}, true);
+
 		// delete
 		if((cint(me.frm.doc.docstatus) != 1) && !me.frm.doc.__islocal
 			&& frappe.model.can_delete(me.frm.doctype)) {
@@ -97,7 +123,7 @@ frappe.ui.form.Toolbar = Class.extend({
 		}
 
 		// New
-		if(p[CREATE]) {
+		if(p[CREATE] && !this.frm.meta.issingle) {
 			this.page.add_menu_item(__("New {0}", [__(me.frm.doctype)]), function() {
 				new_doc(me.frm.doctype);}, true);
 		}
@@ -147,14 +173,22 @@ frappe.ui.form.Toolbar = Class.extend({
 		this.frm.linked_with.show();
 	},
 	set_primary_action: function(dirty) {
-		var me = this,
-			status = null;
-
 		if (!dirty) {
 			// don't clear actions menu if dirty
 			this.page.clear_user_actions();
 		}
 
+		var status = this.get_action_status();
+		if (status) {
+			if (status !== this.current_status) {
+				this.set_page_actions(status);
+			}
+		} else {
+			this.page.clear_actions();
+		}
+	},
+	get_action_status: function() {
+		var status = null;
 		if (this.can_submit()) {
 			status = "Submit";
 		} else if (this.can_save()) {
@@ -168,51 +202,48 @@ frappe.ui.form.Toolbar = Class.extend({
 		} else if (this.can_amend()) {
 			status = "Amend";
 		}
+		return status;
+	},
+	set_page_actions: function(status) {
+		var me = this;
+		this.page.clear_actions();
 
-		if (status) {
-			if (status !== this.current_status) {
-				this.page.clear_actions();
-
-				var perm_to_check = this.frm.action_perm_type_map[status];
-				if(!this.frm.perm[0][perm_to_check]) {
-					return;
-				}
-
-				if(status == "Cancel") {
-					this.page.set_secondary_action(__(status), function() {
-						me.frm.savecancel(this);
-					}, "octicon octicon-circle-slash");
-				} else {
-					var click = {
-						"Save": function() {
-							me.frm.save('Save', null, this);
-						},
-						"Submit": function() {
-							me.frm.savesubmit(this);
-						},
-						"Update": function() {
-							me.frm.save('Update', null, this);
-						},
-						"Amend": function() {
-							me.frm.amend_doc();
-						}
-					}[status];
-
-					var icon = {
-						"Save": "octicon octicon-check",
-						"Submit": "octicon octicon-lock",
-						"Update": "octicon octicon-check",
-						"Amend": "octicon octicon-split"
-					}[status];
-
-					this.page.set_primary_action(__(status), click, icon);
-				}
-
-				this.current_status = status;
-			}
-		} else {
-			this.page.clear_actions();
+		var perm_to_check = this.frm.action_perm_type_map[status];
+		if(!this.frm.perm[0][perm_to_check]) {
+			return;
 		}
+
+		if(status == "Cancel") {
+			this.page.set_secondary_action(__(status), function() {
+				me.frm.savecancel(this);
+			}, "octicon octicon-circle-slash");
+		} else {
+			var click = {
+				"Save": function() {
+					me.frm.save('Save', null, this);
+				},
+				"Submit": function() {
+					me.frm.savesubmit(this);
+				},
+				"Update": function() {
+					me.frm.save('Update', null, this);
+				},
+				"Amend": function() {
+					me.frm.amend_doc();
+				}
+			}[status];
+
+			var icon = {
+				"Save": "octicon octicon-check",
+				"Submit": "octicon octicon-lock",
+				"Update": "octicon octicon-check",
+				"Amend": "octicon octicon-split"
+			}[status];
+
+			this.page.set_primary_action(__(status), click, icon);
+		}
+
+		this.current_status = status;
 	},
 	make_cancel_amend_button: function() {
 		var me = this;

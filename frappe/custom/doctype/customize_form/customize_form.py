@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
 from __future__ import unicode_literals
@@ -10,6 +10,7 @@ import frappe, json
 from frappe import _
 from frappe.utils import cint
 from frappe.model.document import Document
+from frappe.model import no_value_fields
 from frappe.core.doctype.doctype.doctype import validate_fields_for_doctype
 
 class CustomizeForm(Document):
@@ -116,7 +117,7 @@ class CustomizeForm(Document):
 				continue
 
 			for property in self.docfield_properties:
-				if df.get(property) != meta_df[0].get(property):
+				if property != "idx" and df.get(property) != meta_df[0].get(property):
 					if property == "fieldtype":
 						self.validate_fieldtype_change(df, meta_df[0].get(property), df.get(property))
 
@@ -124,6 +125,11 @@ class CustomizeForm(Document):
 						frappe.msgprint(_("Row {0}: Not allowed to enable Allow on Submit for standard fields")\
 							.format(df.idx))
 						continue
+					elif property == "in_list_view" and df.get(property) \
+						and df.fieldtype!="Image" and df.fieldtype in no_value_fields:
+								frappe.msgprint(_("'In List View' not allowed for type {0} in row {1}")
+									.format(df.fieldtype, df.idx))
+								continue
 
 					elif property == "precision" and cint(df.get("precision")) > 6 \
 							and cint(df.get("precision")) > cint(meta_df[0].get("precision")):
@@ -170,7 +176,7 @@ class CustomizeForm(Document):
 				changed = True
 
 		if changed:
-			custom_field.ignore_validate = True
+			custom_field.flags.ignore_validate = True
 			custom_field.save()
 
 	def delete_custom_fields(self):
@@ -254,4 +260,3 @@ class CustomizeForm(Document):
 			and ifnull(field_name, '')!='naming_series'""", self.doc_type)
 		frappe.clear_cache(doctype=self.doc_type)
 		self.fetch_to_customize()
-

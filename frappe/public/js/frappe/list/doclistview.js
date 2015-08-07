@@ -1,4 +1,4 @@
-// Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 
 frappe.provide('frappe.views.doclistview');
@@ -9,6 +9,7 @@ frappe.views.ListFactory = frappe.views.Factory.extend({
 	make: function(route) {
 		var me = this,
 			doctype = route[1];
+
 		frappe.model.with_doctype(doctype, function() {
 			if(locals["DocType"][doctype].issingle) {
 				frappe.set_re_route("Form", doctype);
@@ -27,7 +28,12 @@ frappe.views.ListFactory = frappe.views.Factory.extend({
 		cur_list && cur_list.refresh();
 	},
 	set_cur_list: function() {
+		var route = frappe.get_route();
 		cur_list = frappe.container.page && frappe.container.page.doclistview;
+		if(cur_list && cur_list.doctype!==route[1]) {
+			// changing...
+			cur_list = null;
+		}
 	}
 });
 
@@ -41,7 +47,13 @@ $(document).on("save", function(event, doc) {
 
 frappe.views.DocListView = frappe.ui.Listing.extend({
 	init: function(opts) {
-		$.extend(this, opts)
+		$.extend(this, opts);
+
+		if(!frappe.model.can_read(this.doctype)) {
+			frappe.show_not_permitted(frappe.get_route_str());
+			return;
+		};
+
 		this.label = __(this.doctype);
 		this.dirty = true;
 		this.tags_shown = false;
@@ -68,7 +80,7 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		var module = locals.DocType[this.doctype].module;
 
 		this.page.set_title(__("{0} List", [__(this.doctype)]));
-		frappe.add_breadcrumbs(module);
+		frappe.breadcrumbs.add(module, this.doctype);
 	},
 
 	setup: function() {
@@ -78,20 +90,26 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		this.$page.find('.frappe-list-area').empty(),
 		this.setup_listview();
 		this.init_list(false);
-		this.init_stats();
 		this.init_menu();
-		this.init_star();
 		this.show_match_help();
 		this.init_listview();
 		this.setup_filterable();
 		this.init_filters();
 		this.init_headers();
+		this.init_star();
+		this.init_select_all();
 	},
 
 	init_headers: function() {
-		var main = frappe.render_template("list_item_main_head", {columns: this.listview.columns});
-		$(frappe.render_template("list_item_row_head",
-			{main:main, list:this})).appendTo(this.page.main.find(".list-headers"));
+		var main = frappe.render_template("list_item_main_head", {
+			columns: this.listview.columns,
+			right_column: this.listview.settings.right_column,
+			_checkbox: ((frappe.model.can_delete(this.doctype) || this.listview.settings.selectable)
+				&& !this.listview.no_delete)
+		});
+
+		this.list_header = $(frappe.render_template("list_item_row_head", { main:main, list:this }))
+			.appendTo(this.page.main.find(".list-headers"));
 	},
 
 	init_listview: function() {
@@ -124,15 +142,15 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 			});
 			added && me.run();
 		});
-		this.$page.on("click", ".doclist-row", function(e) {
+		this.$page.find(".result-list").on("click", ".list-row-left", function(e) {
 			// don't open in case of checkbox, star, filterable
-			if ((e.target.class || "").indexOf("filterable")!==-1
-				|| (e.target.class || "").indexOf("icon-star")!==-1
+			if ((e.target.className || "").indexOf("filterable")!==-1
+				|| (e.target.className || "").indexOf("icon-star")!==-1
 				|| e.target.type==="checkbox") {
 				return;
 			}
 
-			var link = $(this).find("a.list-id").get(0);
+			var link = $(this).parent().find("a.list-id").get(0);
 			window.location.href = link.href;
 			return false;
 		});
@@ -156,36 +174,9 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		var perm = frappe.perm.get_perm(this.doctype);
 
 		if(match_rules_list.length) {
-			var or_match_text = [];
-
-			$.each(match_rules_list, function(i, match_rules) {
-				var match_text = []
-				$.each(match_rules, function(key, values) {
-					if(values.length==0) {
-						match_text.push(__(key) + __(" is not set"));
-					} else if(values.length) {
-						match_text.push(__(key) + " = " + frappe.utils.comma_or(values));
-					}
-				});
-
-				if (match_text.length) {
-					var txt = "<ul>" + $.map(match_text, function(txt) { return "<li>"+txt+"</li>" }).join("") + "</ul>";
-					or_match_text.push(txt);
-				}
-			});
-
-			if (or_match_text.length) {
-				frappe.utils.set_footnote(this, this.$page.find(".layout-main-section"),
-					'<p>'
-						+ __("Additional filters based on User Permissions:") + "</p>"
-					+ or_match_text.join("<p class=\"strong\" \
-						style=\"margin-left: 40px; margin-top: 7px; margin-bottom: 7px;\">"
-						+ __("or") + "</p>")
-					+ "<p class=\"text-muted\" style=\"margin-top: 15px; margin-bottom: 0px;\">"
-					+ __("Note: fields having empty value for above criteria are not filtered out.")
-					+ "</p>");
-				$(this.footnote_area).css({"margin-top":"0px"});
-			}
+			frappe.utils.set_footnote(this, this.$page.find(".layout-main-section"),
+				frappe.render_template("list_permission_footer", {condition_list: match_rules_list}));
+			$(this.footnote_area).css({"margin-top":"0px"});
 		}
 	},
 	setup_listview: function() {
@@ -224,6 +215,7 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 
 	refresh: function() {
 		var me = this;
+		this.init_stats();
 		if(frappe.route_options) {
 			me.set_route_options();
 		} else if(me.dirty) {
@@ -259,6 +251,10 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 				me.set_filter(key, val, true);
 			});
 		}
+
+		this.list_header.find(".list-starred-by-me")
+			.toggleClass("text-extra-muted not-starred", !this.is_star_filtered());
+
 		this.last_updated_on = new Date();
 		this.dirty = false;
 		this._super(more);
@@ -303,6 +299,12 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		this.filter_list.add_filter(this.doctype, "_starred_by", 'like', '%' + user + '%');
 		this.run();
 	},
+	remove_starred_by_me: function() {
+		this.filter_list.get_filter("_starred_by").remove();
+	},
+	is_star_filtered: function() {
+		return this.filter_list.filter_exists(this.doctype, "_starred_by", 'like', '%' + user + '%');
+	},
 	init_menu: function() {
 		var me = this;
 		this.$page.on("click", ".list-tag-preview", function() { me.toggle_tags(); });
@@ -311,21 +313,12 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 			me.run();
 		}, "octicon octicon-sync");
 
-		if(this.can_delete || this.listview.settings.selectable) {
-			this.page.add_menu_item(__('Select All'), function() {
-				me.$page.find('.list-delete').prop("checked",
-					me.$page.find('.list-delete:checked').length ? false : true);
-			}, true);
-			this.page.add_menu_item(__('Delete'),
-				function() { me.delete_items(); }, true);
-		}
-		this.page.add_divider();
 		if(frappe.model.can_import(this.doctype)) {
 			this.page.add_menu_item(__("Import"), function() {
 				frappe.set_route("data-import-tool", {
 					doctype: me.doctype
-				}, true)
-			});
+				});
+			}, true);
 		}
 		if(frappe.model.can_set_user_permissions(this.doctype)) {
 			this.page.add_menu_item(__("User Permissions Manager"), function() {
@@ -344,7 +337,7 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 			}, true);
 			this.page.add_menu_item(__("Customize"), function() {
 				frappe.set_route("Form", "Customize Form", {
-					doctype: me.doctype
+					doc_type: me.doctype
 				})
 			}, true);
 		}
@@ -352,10 +345,60 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 
 	init_star: function() {
 		var me = this;
-		this.$page.on("click", ".star-action", function() {
+		this.$page.find(".result-list").on("click", ".star-action", function() {
 			frappe.ui.toggle_star($(this), me.doctype, $(this).attr("data-name"));
 			return false;
 		});
+		this.list_header.find(".list-starred-by-me").on("click", function() {
+			if (me.is_star_filtered()) {
+				me.remove_starred_by_me();
+			} else {
+				me.starred_by_me();
+			}
+		});
+	},
+
+	init_select_all: function() {
+		var me = this;
+
+		if(this.can_delete || this.listview.settings.selectable) {
+			this.list_header.find(".list-select-all").on("click", function() {
+				me.$page.find('.list-delete').prop("checked", $(this).prop("checked"));
+				me.toggle_delete();
+			});
+
+			this.$page.on("click", ".list-delete", function(event) {
+				me.toggle_delete();
+
+				// multi-select using shift key
+				var $this = $(this);
+				if (event.shiftKey && $this.prop("checked")) {
+					var $end_row = $this.parents(".list-row");
+					var $start_row = $end_row.prevAll(".list-row")
+						.find(".list-delete:checked").last().parents(".list-row");
+					if ($start_row) {
+						$start_row.nextUntil($end_row).find(".list-delete").prop("checked", true);
+					}
+				}
+			});
+
+			// after delete, hide delete button
+			this.$w.on("render-complete", function() {
+				me.toggle_delete();
+			});
+		}
+	},
+
+	toggle_delete: function() {
+		var me = this;
+		if (this.$page.find(".list-delete:checked").length) {
+			this.page.set_primary_action(__("Delete"), function() { me.delete_items() },
+				"octicon octicon-trashcan");
+			this.page.btn_primary.addClass("btn-danger");
+		} else {
+			this.page.btn_primary.removeClass("btn-danger");
+			this.set_primary_action();
+		}
 	},
 
 	toggle_tags: function() {
@@ -380,11 +423,12 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		if(!dl.length)
 			return;
 
-		frappe.confirm(__('This is permanent action and you cannot undo. Continue?'),
+		frappe.confirm(__('Delete permanently?'),
 			function() {
 				me.set_working(true);
 				return frappe.call({
 					method: 'frappe.desk.reportview.delete_items',
+					freeze: true,
 					args: {
 						items: $.map(dl, function(d, i) { return d.name }),
 						doctype: me.doctype
@@ -403,10 +447,11 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		this.sidebar_stats = new frappe.views.ListSidebar({
 			doctype: this.doctype,
 			stats: this.listview.stats,
-			parent: $('<div>').appendTo(this.$page.find('.layout-side-section')),
+			parent: this.$page.find('.layout-side-section'),
 			set_filter: function(fieldname, label) {
 				me.set_filter(fieldname, label);
 			},
+			page: this.page,
 			doclistview: this
 		})
 	},
@@ -438,5 +483,21 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		}
 		if(!no_run)
 			this.run();
+	},
+	call_for_selected_items: function(method, args) {
+		var me = this;
+		args.names = $.map(this.get_checked_items(), function(d) { return d.name; });
+
+		frappe.call({
+			method: method,
+			args: args,
+			freeze: true,
+			callback: function(r) {
+				if(!r.exc) {
+					me.list_header.find(".list-select-all").prop("checked", false);
+					me.run();
+				}
+			}
+		});
 	}
 });

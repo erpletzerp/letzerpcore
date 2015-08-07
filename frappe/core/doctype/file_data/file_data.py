@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
 from __future__ import unicode_literals
@@ -14,13 +14,13 @@ from frappe.model.document import Document
 from frappe.utils.file_manager import delete_file_data_content
 
 class FileData(Document):
-	ignore_feed = True
+	no_feed_on_delete = True
 
 	def before_insert(self):
 		frappe.local.rollback_observers.append(self)
 
 	def validate(self):
-		if not getattr(self, "ignore_duplicate_entry_error", False):
+		if not self.flags.ignore_duplicate_entry_error:
 			# check duplicate assignement
 			n_records = frappe.db.sql("""select name from `tabFile Data`
 				where content_hash=%s
@@ -36,7 +36,7 @@ class FileData(Document):
 		if self.attached_to_name:
 			# check persmission
 			try:
-				if not getattr(self, 'ignore_permissions', False) and \
+				if not self.flags.ignore_permissions and \
 					not frappe.has_permission(self.attached_to_doctype, "write", self.attached_to_name):
 
 					frappe.msgprint(frappe._("No permission to write / remove."), raise_exception=True)

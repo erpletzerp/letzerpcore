@@ -1,4 +1,4 @@
-// Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 
 frappe.provide("frappe.ui.form");
@@ -10,11 +10,11 @@ frappe.ui.form.Attachments = Class.extend({
 	},
 	make: function() {
 		var me = this;
-		this.$list = this.parent.find(".attachment-list");
-
 		this.parent.find(".add-attachment").click(function() {
 			me.new_attachment();
 		});
+		this.add_attachment_wrapper = this.parent.find(".add_attachment").parent();
+		this.attachments_label = this.parent.find(".attachments-label");
 	},
 	max_reached: function() {
 		// no of attachments
@@ -27,29 +27,28 @@ frappe.ui.form.Attachments = Class.extend({
 		return true;
 	},
 	refresh: function() {
-		var doc = this.frm.doc;
-		if(doc.__islocal) {
+		var me = this;
+
+		if(this.frm.doc.__islocal) {
 			this.parent.toggle(false);
 			return;
 		}
 		this.parent.toggle(true);
-		this.parent.find(".btn").toggle(!this.max_reached());
+		this.parent.find(".attachment-row").remove();
 
-		this.$list.empty();
-
-		var attachments = this.get_attachments();
-		var that = this;
-
+		var max_reached = this.max_reached();
+		this.add_attachment_wrapper.toggleClass("hide", !max_reached);
 
 		// add attachment objects
+		var attachments = this.get_attachments();
 		if(attachments.length) {
 			attachments.forEach(function(attachment) {
-				that.add_attachment(attachment)
+				me.add_attachment(attachment)
 			});
+		} else {
+			this.attachments_label.removeClass("has-attachments");
 		}
 
-		// refresh select fields with options attach_files:
-		this.refresh_attachment_select_fields();
 	},
 	get_attachments: function() {
 		return this.frm.get_docinfo().attachments;
@@ -63,15 +62,16 @@ frappe.ui.form.Attachments = Class.extend({
 		}
 
 		var me = this;
-		var $attach = $(repl('<div class="text-ellipsis">\
-				<a href="#" class="close">&times;</a>\
-				<a class="h6" href="%(file_url)s" style="margin-top: 0px;"\
-					target="_blank" title="%(file_name)s">%(file_name)s</a>\
-			</div>', {
+		var $attach = $(repl('<li class="attachment-row">\
+				<a class="close" data-owner="%(owner)s">&times;</a>\
+				<a href="%(file_url)s" target="_blank" title="%(file_name)s" \
+					class="text-ellipsis" style="max-width: calc(100% - 43px);">\
+					<span>%(file_name)s</span></a>\
+			</li>', {
 				file_name: file_name,
-				file_url: file_url
+				file_url: frappe.urllib.get_full_url(file_url)
 			}))
-			.appendTo(this.$list)
+			.insertAfter(this.attachments_label.addClass("has-attachments"));
 
 		var $close =
 			$attach.find(".close")
@@ -211,20 +211,5 @@ frappe.ui.form.Attachments = Class.extend({
 		});
 		this.frm.get_docinfo().attachments = new_attachments;
 		this.refresh();
-	},
-	refresh_attachment_select_fields: function() {
-		for(var i=0; i<this.frm.fields.length; i++) {
-			if(this.frm.fields[i].df.options=="attach_files:" && this.frm.fields[i].$input) {
-				var fieldname = this.frm.fields[i].df.fieldname;
-				var selected_option = this.frm.fields[i].$input.find("option:selected").val();
-
-				if(this.frm.doc[fieldname]!=null && selected_option!==this.frm.doc[fieldname]) {
-					this.frm.script_manager.trigger(fieldname);
-					this.frm.set_value(fieldname, "");
-				}
-
-				this.frm.fields[i].refresh();
-			}
-		}
 	}
 });

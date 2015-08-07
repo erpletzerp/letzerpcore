@@ -21,11 +21,11 @@
    "reqd": 0
   }, 
   {
-   "description": "", 
-   "fieldname": "title_prefix", 
-   "fieldtype": "Data", 
+   "description": "If checked, the Home page will be the default Item Group for the website.", 
+   "fieldname": "home_page_is_products", 
+   "fieldtype": "Check", 
    "in_list_view": 1, 
-   "label": "Title Prefix", 
+   "label": "Home Page is Products", 
    "permlevel": 0
   }, 
   {
@@ -34,12 +34,44 @@
    "permlevel": 0
   }, 
   {
-   "description": "If checked, the Home page will be the default Item Group for the website.", 
-   "fieldname": "home_page_is_products", 
-   "fieldtype": "Check", 
+   "description": "Show title in browser window as \"Prefix - title\"", 
+   "fieldname": "title_prefix", 
+   "fieldtype": "Data", 
    "in_list_view": 1, 
-   "label": "Home Page is Products", 
+   "label": "Title Prefix", 
    "permlevel": 0
+  }, 
+  {
+   "fieldname": "section_break_6", 
+   "fieldtype": "Section Break", 
+   "permlevel": 0, 
+   "precision": ""
+  }, 
+  {
+   "default": "Standard", 
+   "fieldname": "website_theme", 
+   "fieldtype": "Link", 
+   "label": "Website Theme", 
+   "options": "Website Theme", 
+   "permlevel": 0, 
+   "precision": ""
+  }, 
+  {
+   "fieldname": "website_theme_image", 
+   "fieldtype": "Image", 
+   "hidden": 1, 
+   "label": "Website Theme Image", 
+   "options": "website_theme_image_link", 
+   "permlevel": 0, 
+   "precision": ""
+  }, 
+  {
+   "fieldname": "website_theme_image_link", 
+   "fieldtype": "Small Text", 
+   "hidden": 1, 
+   "label": "Website Theme Image Link", 
+   "permlevel": 0, 
+   "precision": ""
   }, 
   {
    "description": "Add a banner to the site. (small banners are usually good)", 
@@ -51,9 +83,9 @@
   {
    "description": "Select an image of approx width 150px with a transparent background for best results.", 
    "fieldname": "banner_image", 
-   "fieldtype": "Select", 
+   "fieldtype": "Attach Image", 
    "label": "Banner Image", 
-   "options": "attach_files:", 
+   "options": "", 
    "permlevel": 0
   }, 
   {
@@ -63,6 +95,12 @@
    "permlevel": 0
   }, 
   {
+   "fieldname": "column_break_14", 
+   "fieldtype": "Column Break", 
+   "permlevel": 0, 
+   "precision": ""
+  }, 
+  {
    "description": "Banner is above the Top Menu Bar.", 
    "fieldname": "banner_html", 
    "fieldtype": "Small Text", 
@@ -70,7 +108,7 @@
    "permlevel": 0
   }, 
   {
-   "description": "Menu items in the Top Bar. For setting the color of the Top Bar, go to <a href=\"#Form/Style Settings\">Style Settings</a>", 
+   "description": "Menu items in the Top Bar. For setting the color of the Top Bar, go to selected Website Theme.", 
    "fieldname": "top_bar", 
    "fieldtype": "Section Break", 
    "label": "Top Bar", 
@@ -98,13 +136,6 @@
    "permlevel": 0
   }, 
   {
-   "description": "Hide the sidebar", 
-   "fieldname": "no_sidebar", 
-   "fieldtype": "Check", 
-   "label": "No Sidebar", 
-   "permlevel": 0
-  }, 
-  {
    "fieldname": "sidebar_items", 
    "fieldtype": "Table", 
    "label": "Sidebar Items", 
@@ -118,16 +149,16 @@
    "permlevel": 0
   }, 
   {
+   "fieldname": "copyright", 
+   "fieldtype": "Data", 
+   "label": "Copyright", 
+   "permlevel": 0
+  }, 
+  {
    "description": "Address and other legal information you may want to put in the footer.", 
    "fieldname": "address", 
    "fieldtype": "Text Editor", 
    "label": "Address", 
-   "permlevel": 0
-  }, 
-  {
-   "fieldname": "copyright", 
-   "fieldtype": "Data", 
-   "label": "Copyright", 
    "permlevel": 0
   }, 
   {
@@ -136,6 +167,13 @@
    "label": "Footer Items", 
    "options": "Top Bar Item", 
    "permlevel": 0
+  }, 
+  {
+   "fieldname": "hide_footer_signup", 
+   "fieldtype": "Check", 
+   "label": "Hide Footer Signup", 
+   "permlevel": 0, 
+   "precision": ""
   }, 
   {
    "fieldname": "integrations", 
@@ -193,11 +231,11 @@
    "permlevel": 0
   }, 
   {
-   "description": "An icon file with .ico extension. Should be 16 x 16 px. Generated using a favicon generator. [<a href=\"http://favicon-generator.org/\" target=\"_blank\">favicon-generator.org</a>]", 
+   "description": "An icon file with .ico extension. Should be 16 x 16 px. Generated using a favicon generator. [favicon-generator.org]", 
    "fieldname": "favicon", 
-   "fieldtype": "Select", 
+   "fieldtype": "Attach", 
    "label": "FavIcon", 
-   "options": "attach_files:", 
+   "options": "", 
    "permlevel": 0
   }, 
   {
@@ -242,6 +280,7 @@
    "read": 1, 
    "report": 0, 
    "role": "Website Manager", 
+   "share": 1, 
    "submit": 0, 
    "write": 1
   }, 

@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
 from __future__ import unicode_literals
@@ -33,6 +33,17 @@ def get_mapped_doc(from_doctype, from_docname, table_maps, target_doc=None,
 	for df in source_doc.meta.get_table_fields():
 		source_child_doctype = df.options
 		table_map = table_maps.get(source_child_doctype)
+
+		# if table_map isn't explicitly specified check if both source and target have the same fieldname and same table options and both of them don't have no_copy
+		if not table_map:
+			target_df = target_doc.meta.get_field(df.fieldname)
+			if target_df:
+				target_child_doctype = target_df.options
+				if target_df and target_child_doctype==source_child_doctype and not df.no_copy and not target_df.no_copy:
+					table_map = {
+						"doctype": target_child_doctype
+					}
+		
 		if table_map:
 			for source_d in source_doc.get(df.fieldname):
 				if "condition" in table_map:
@@ -59,6 +70,7 @@ def get_mapped_doc(from_doctype, from_docname, table_maps, target_doc=None,
 	if postprocess:
 		postprocess(source_doc, target_doc)
 
+	target_doc.set_onload("load_after_mapping", True)
 	return target_doc
 
 def map_doc(source_doc, target_doc, table_map, source_parent=None):
@@ -77,8 +89,8 @@ def map_doc(source_doc, target_doc, table_map, source_parent=None):
 def map_fields(source_doc, target_doc, table_map, source_parent):
 	no_copy_fields = set([d.fieldname for d in source_doc.meta.get("fields") if (d.no_copy==1 or d.fieldtype=="Table")]
 		+ [d.fieldname for d in target_doc.meta.get("fields") if (d.no_copy==1 or d.fieldtype=="Table")]
-		+ default_fields
-		+ table_map.get("field_no_map", []))
+		+ list(default_fields)
+		+ list(table_map.get("field_no_map", [])))
 
 	for df in target_doc.meta.get("fields"):
 		if df.fieldname not in no_copy_fields:

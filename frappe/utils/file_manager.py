@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
 from __future__ import unicode_literals
@@ -6,7 +6,7 @@ import frappe
 import os, base64, re
 import hashlib
 import mimetypes
-from frappe.utils import get_site_path, get_hook_method, get_files_path
+from frappe.utils import get_site_path, get_hook_method, get_files_path, random_string, encode, cstr
 from frappe import _
 from frappe import conf
 from copy import copy
@@ -64,7 +64,7 @@ def save_url(file_url, dt, dn):
 		"attached_to_doctype": dt,
 		"attached_to_name": dn
 	})
-	f.ignore_permissions = True
+	f.flags.ignore_permissions = True
 	try:
 		f.insert();
 	except frappe.DuplicateEntryError:
@@ -83,25 +83,50 @@ def get_uploaded_content():
 		frappe.msgprint(_('No file attached'))
 		return None, None
 
-def extract_images_from_html(doc, fieldname):
+def extract_images_from_doc(doc, fieldname):
 	content = doc.get(fieldname)
+	content = extract_images_from_html(doc, content)
+	if frappe.flags.has_dataurl:
+		doc.set(fieldname, content)
+
+def extract_images_from_html(doc, content):
 	frappe.flags.has_dataurl = False
 
 	def _save_file(match):
 		data = match.group(1)
+		data = data.split("data:")[1]
 		headers, content = data.split(",")
-		filename = headers.split("filename=")[-1]
+
+		if "filename=" in headers:
+			filename = headers.split("filename=")[-1]
+		else:
+			mtype = headers.split(";")[0]
+			filename = get_random_filename(content_type=mtype)
+
+		doctype = doc.parenttype if doc.parent else doc.doctype
+		name = doc.parent or doc.name
+
 		# TODO fix this
-		file_url = save_file(filename, content, doc.doctype, doc.name, decode=True).get("file_url")
+		file_url = save_file(filename, content, doctype, name, decode=True).get("file_url")
 		if not frappe.flags.has_dataurl:
 			frappe.flags.has_dataurl = True
 
 		return '<img src="{file_url}"'.format(file_url=file_url)
 
 	if content:
-		content = re.sub('<img\s*src=\s*["\'](data:[^"\']*)["\']', _save_file, content)
-		if frappe.flags.has_dataurl:
-			doc.set(fieldname, content)
+		content = re.sub('<img[^>]*src\s*=\s*["\'](?=data:)(.*?)["\']', _save_file, content)
+
+	return content
+
+def get_random_filename(extn=None, content_type=None):
+	if extn:
+		if not extn.startswith("."):
+			extn = "." + extn
+
+	elif content_type:
+		extn = mimetypes.guess_extension(content_type)
+
+	return random_string(7) + (extn or "")
 
 def save_file(fname, content, dt, dn, decode=False):
 	if decode:
@@ -131,7 +156,7 @@ def save_file(fname, content, dt, dn, decode=False):
 	})
 
 	f = frappe.get_doc(file_data)
-	f.ignore_permissions = True
+	f.flags.ignore_permissions = True
 	try:
 		f.insert();
 	except frappe.DuplicateEntryError:
@@ -154,7 +179,7 @@ def save_file_on_filesystem(fname, content, content_type=None):
 	}
 
 def check_max_file_size(content):
-	max_file_size = conf.get('max_file_size') or 3145728
+	max_file_size = conf.get('max_file_size') or 5242880
 	file_size = len(content)
 
 	if file_size > max_file_size:
@@ -219,10 +244,14 @@ def delete_file_data_content(doc):
 
 def delete_file_from_filesystem(doc):
 	path = doc.file_name
+
 	if path.startswith("files/"):
 		path = frappe.utils.get_site_path("public", doc.file_name)
 	else:
 		path = frappe.utils.get_site_path("public", "files", doc.file_name)
+
+	path = encode(path)
+
 	if os.path.exists(path):
 		os.remove(path)
 
@@ -249,8 +278,11 @@ def get_content_hash(content):
 	return hashlib.md5(content).hexdigest()
 
 def get_file_name(fname, optional_suffix):
+	# convert to unicode
+	fname = cstr(fname)
+
 	n_records = frappe.db.sql("select name from `tabFile Data` where file_name=%s", fname)
-	if len(n_records) > 0 or os.path.exists(get_files_path(fname).encode('utf-8')):
+	if len(n_records) > 0 or os.path.exists(encode(get_files_path(fname))):
 		f = fname.rsplit('.', 1)
 		if len(f) == 1:
 			partial, extn = f[0], ""

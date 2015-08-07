@@ -1,4 +1,4 @@
-// Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 frappe.provide("frappe.ui.form");
 
@@ -33,35 +33,51 @@ frappe.ui.form.Layout = Class.extend({
 		var me = this;
 		if(doc) this.doc = doc;
 
-		this.wrapper.find(".empty-form-alert").remove();
+		if (this.frm) {
+			this.wrapper.find(".empty-form-alert").remove();
+		}
 
-		$.each(this.fields_list, function(i, fieldobj) {
+		// NOTE this might seem redundant at first, but it needs to be executed when frm.refresh_fields is called
+		me.attach_doc_and_docfields(true);
+
+		if(this.frm && this.frm.wrapper) {
+			$(this.frm.wrapper).trigger("refresh-fields");
+		}
+
+		if (this.frm) {
+			// show empty form notification
+			setTimeout(function() {
+				me.page.find(".empty-form-alert").remove();
+				if(!(me.page.find(".frappe-control:visible").length)) {
+					$('<div class="empty-form-alert text-muted" style="padding: 15px;">'
+						+__("This form does not have any input")+'</div>')
+					.appendTo(me.page);
+				}
+			}, 100);
+		}
+
+		// dependent fields
+		this.refresh_dependency();
+
+		// refresh sections
+		this.refresh_sections();
+	},
+	attach_doc_and_docfields: function(refresh) {
+		var me = this;
+		for(var i=0, l=this.fields_list.length; i<l; i++) {
+			var fieldobj = this.fields_list[i];
 			if(me.doc) {
 				fieldobj.doc = me.doc;
 				fieldobj.doctype = me.doc.doctype;
 				fieldobj.docname = me.doc.name;
 				fieldobj.df = frappe.meta.get_docfield(me.doc.doctype,
 					fieldobj.df.fieldname, me.frm.doc.name);
+
 				// on form change, permissions can change
 				fieldobj.perm = me.frm.perm;
 			};
-			fieldobj.refresh && fieldobj.refresh();
-		});
-		if(this.frm && this.frm.wrapper) {
-			$(this.frm.wrapper).trigger("refresh-fields");
+			refresh && fieldobj.refresh && fieldobj.refresh();
 		}
-
-		// show empty form notification
-		setTimeout(function() {
-			me.wrapper.find(".empty-form-alert").remove();
-			if(!(me.wrapper.find(".frappe-control:visible").length)) {
-				$('<div class="empty-form-alert text-muted" style="margin: 15px; margin-top: -15px;">'+__("This form does not have any input")+'</div>')
-				.appendTo(me.wrapper)
-			}
-		}, 100);
-
-		// dependent fields
-		this.refresh_dependency();
 	},
 	render: function() {
 		var me = this;
@@ -89,20 +105,6 @@ frappe.ui.form.Layout = Class.extend({
 		});
 
 	},
-	make_column: function(df) {
-		this.column = $('<div class="form-column">\
-			<form>\
-			</form>\
-		</div>').appendTo(this.section.body)
-			.find("form")
-			.on("submit", function() { return false; })
-
-		// distribute all columns equally
-		var colspan = cint(12 / this.section.find(".form-column").length);
-		this.section.find(".form-column").removeClass()
-			.addClass("form-column")
-			.addClass("col-sm-" + colspan);
-	},
 	make_field: function(df, colspan) {
 		!this.section && this.make_section();
 		!this.column && this.make_column();
@@ -123,7 +125,7 @@ frappe.ui.form.Layout = Class.extend({
 	},
 	make_page: function(df) {
 		var me = this,
-			head = $('<div class="form-page-header text-center">\
+			head = $('<div class="form-clickable-section text-center">\
 				<a class="btn-fold h6 text-muted">'+__("Show more details")+'</a>\
 			</div>').appendTo(this.wrapper);
 
@@ -134,6 +136,7 @@ frappe.ui.form.Layout = Class.extend({
 			if(page.hasClass("hide")) {
 				$(this).removeClass("btn-fold").html(__("Hide details"));
 				page.removeClass("hide");
+				frappe.ui.scroll($(this), true, 30);
 				me.folded = false;
 			} else {
 				$(this).addClass("btn-fold").html(__("Show more details"));
@@ -151,6 +154,7 @@ frappe.ui.form.Layout = Class.extend({
 	},
 
 	make_section: function(df) {
+		var me = this;
 		if(!this.page) {
 			this.page = $('<div class="form-page"></div>').appendTo(this.wrapper);
 		}
@@ -162,15 +166,13 @@ frappe.ui.form.Layout = Class.extend({
 		var section = this.section[0];
 		section.df = df;
 		if(df) {
+			if(df.label) {
+				$('<div class="col-sm-12"><h4 class="form-section-heading">' + __(df.label) + '</h4></div>')
+				.appendTo(this.section);
+			}
 			if(df.description) {
 				$('<div class="col-sm-12 small text-muted">' + __(df.description) + '</div>')
 				.appendTo(this.section);
-			}
-			if(df.label || df.description) {
-				// spacer
-				$('<div class="col-sm-12"></div>')
-					.appendTo(this.section)
-					.css({"height": "10px"});
 			}
 			this.fields_dict[df.fieldname] = section;
 			this.fields_list.push(section);
@@ -182,14 +184,66 @@ frappe.ui.form.Layout = Class.extend({
 		section.row = {
 			wrapper: section
 		};
+		section.layout = me;
 		section.refresh = function() {
-			if(!this.df) return;
-			$(this).toggle(this.df.hidden || this.df.hidden_due_to_dependency
-				? false : (cur_frm ? !!cur_frm.get_perm(this.df.permlevel, "read") : true))
+			frappe.ui.section_refresh.apply(this);
 		}
 		this.column = null;
 		section.refresh.call(section);
 		return this.section;
+	},
+	make_column: function(df) {
+		if(!df) df = {};
+
+		var column = $('<div class="form-column">\
+			<form>\
+			</form>\
+		</div>').appendTo(this.section.body)
+			.find("form")
+			.on("submit", function() { return false; })
+
+		if(df.label) {
+			$('<label class="control-label">'+ __(df.label)
+				+'</label>').appendTo(column);
+		}
+
+		// distribute all columns equally
+		var colspan = cint(12 / this.section.find(".form-column").length);
+		this.section.find(".form-column").removeClass()
+			.addClass("form-column")
+			.addClass("col-sm-" + colspan);
+
+		column.df = df;
+		column.layout = this;
+
+		//this.fields_dict[df.fieldname] = column;
+		if(df.fieldname) {
+			this.fields_list.push(column);
+		}
+
+		column.refresh = function() {
+			frappe.ui.section_refresh.apply(this);
+		}
+
+		this.column = column;
+	},
+	refresh_sections: function() {
+		var cnt = 0;
+		this.wrapper.find(".form-section:not(.hide-control)").each(function() {
+			var $this = $(this).removeClass("empty-section")
+				.removeClass("visible-section")
+				.removeClass("shaded-section");
+			if(!$(this).find(".frappe-control:not(.hide-control)").length) {
+				// nothing visible, hide the section
+				$(this).addClass("empty-section");
+			} else {
+				$(this).addClass("visible-section");
+				if(cnt % 2) {
+					$(this).addClass("shaded-section");
+				}
+				cnt ++;
+			}
+		});
 	},
 	refresh_section_count: function() {
 		this.wrapper.find(".section-count-label:visible").each(function(i) {
@@ -342,4 +396,19 @@ frappe.ui.form.Layout = Class.extend({
 
 		this.refresh_section_count();
 	}
-})
+});
+
+frappe.ui.section_refresh = function() {
+	if(!this.df)
+		return;
+
+	// hide if explictly hidden
+	var hide = this.df.hidden || this.df.hidden_due_to_dependency;
+
+	// hide if no perm
+	if(!hide && this.layout && this.layout.frm && !this.layout.frm.get_perm(this.df.permlevel || 0, "read")) {
+		hide = true;
+	}
+
+	$(this).toggleClass("hide-control", !!hide);
+}

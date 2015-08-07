@@ -1,6 +1,6 @@
 {
  "allow_copy": 0, 
- "autoname": "PERM.#####", 
+ "autoname": "hash", 
  "creation": "2013-02-22 01:27:33", 
  "docstatus": 0, 
  "doctype": "DocType", 
@@ -32,6 +32,14 @@
    "fieldtype": "Check", 
    "label": "Apply User Permissions", 
    "permlevel": 0
+  }, 
+  {
+   "description": "Apply this rule if the User is the Owner", 
+   "fieldname": "if_owner", 
+   "fieldtype": "Check", 
+   "label": "If user is the owner", 
+   "permlevel": 0, 
+   "precision": ""
   }, 
   {
    "fieldname": "column_break_2", 
@@ -69,6 +77,7 @@
    "permlevel": 0
   }, 
   {
+   "default": "1", 
    "fieldname": "read", 
    "fieldtype": "Check", 
    "hidden": 0, 
@@ -83,6 +92,7 @@
    "width": "32px"
   }, 
   {
+   "default": "1", 
    "fieldname": "write", 
    "fieldtype": "Check", 
    "hidden": 0, 
@@ -97,6 +107,7 @@
    "width": "32px"
   }, 
   {
+   "default": "1", 
    "fieldname": "create", 
    "fieldtype": "Check", 
    "hidden": 0, 
@@ -111,6 +122,7 @@
    "width": "32px"
   }, 
   {
+   "default": "1", 
    "fieldname": "delete", 
    "fieldtype": "Check", 
    "in_list_view": 1, 
@@ -167,6 +179,7 @@
    "permlevel": 0
   }, 
   {
+   "default": "1", 
    "fieldname": "report", 
    "fieldtype": "Check", 
    "label": "Report", 
@@ -175,6 +188,7 @@
    "width": "32px"
   }, 
   {
+   "default": "1", 
    "fieldname": "export", 
    "fieldtype": "Check", 
    "label": "Export", 
@@ -199,12 +213,22 @@
    "permlevel": 0
   }, 
   {
+   "default": "1", 
+   "fieldname": "share", 
+   "fieldtype": "Check", 
+   "label": "Share", 
+   "permlevel": 0, 
+   "precision": ""
+  }, 
+  {
+   "default": "1", 
    "fieldname": "print", 
    "fieldtype": "Check", 
    "label": "Print", 
    "permlevel": 0
   }, 
   {
+   "default": "1", 
    "fieldname": "email", 
    "fieldtype": "Check", 
    "label": "Email", 
@@ -216,7 +240,7 @@
  "idx": 1, 
  "issingle": 0, 
  "istable": 1, 
- "modified": "2014-08-26 01:43:31.499363", 
+ "modified": "2015-07-22 07:39:40.471092", 
  "modified_by": "Administrator", 
  "module": "Core", 
  "name": "DocPerm", 

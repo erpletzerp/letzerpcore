@@ -1,9 +1,10 @@
-# Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
 from __future__ import unicode_literals
 import frappe
 from frappe import _
+from frappe.boot import get_allowed_pages
 
 @frappe.whitelist()
 def get(module):
@@ -31,6 +32,7 @@ def get_data(module):
 		get_report_list(module))
 
 	data = combine_common_sections(data)
+	data = apply_permissions(data)
 
 	set_last_modified(data)
 
@@ -115,6 +117,38 @@ def combine_common_sections(data):
 
 	return sections
 
+def apply_permissions(data):
+	default_country = frappe.db.get_default("country")
+
+	user = frappe.get_user()
+	user.build_permissions()
+
+	allowed_pages = get_allowed_pages()
+
+	new_data = []
+	for section in data:
+		new_items = []
+
+		for item in (section.get("items") or []):
+			item = frappe._dict(item)
+
+			if item.country and item.country!=default_country:
+				continue
+
+			if ((item.type=="doctype" and item.name in user.can_read)
+				or (item.type=="page" and item.name in allowed_pages)
+				or (item.type=="report" and item.doctype in user.can_get_report)
+				or item.type=="help"):
+
+				new_items.append(item)
+
+		if new_items:
+			new_section = section.copy()
+			new_section["items"] = new_items
+			new_data.append(new_section)
+
+	return new_data
+
 def get_config(app, module):
 	"""Load module info from `[app].config.[module]`."""
 	config = frappe.get_module("{app}.config.{module}".format(app=app, module=module))
@@ -153,13 +187,26 @@ def set_last_modified(data):
 				item["last_modified"] = get_last_modified(item["name"])
 
 def get_last_modified(doctype):
-	try:
-		last_modified = frappe.get_all(doctype, fields=["max(modified)"], as_list=True, limit_page_length=1)[0][0]
-	except Exception, e:
-		if e.args[0]==1146:
-			last_modified = None
-		else:
-			raise
+	def _get():
+		try:
+			last_modified = frappe.get_all(doctype, fields=["max(modified)"], as_list=True, limit_page_length=1)[0][0]
+		except Exception, e:
+			if e.args[0]==1146:
+				last_modified = None
+			else:
+				raise
+
+		# hack: save as -1 so that it is cached
+		if last_modified==None:
+			last_modified = -1
+
+		return last_modified
+
+	last_modified = frappe.cache().hget("last_modified", doctype, _get)
+
+	if last_modified==-1:
+		last_modified = None
+
 	return last_modified
 
 def get_report_list(module, is_standard="No"):

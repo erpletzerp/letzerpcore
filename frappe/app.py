@@ -1,9 +1,11 @@
-# Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
+from __future__ import unicode_literals
 
 import sys, os
 import json
 import logging
+import MySQLdb
 
 from werkzeug.wrappers import Request, Response
 from werkzeug.local import LocalManager
@@ -68,8 +70,17 @@ def application(request):
 
 	except Exception, e:
 		http_status_code = getattr(e, "http_status_code", 500)
+		#print frappe.get_traceback()
 
-		if frappe.local.is_ajax:
+		if (http_status_code==500
+			and isinstance(e, MySQLdb.OperationalError)
+			and e.args[0] in (1205, 1213)):
+				# 1205 = lock wait timeout
+				# 1213 = deadlock
+				# code 409 represents conflict
+				http_status_code = 508
+
+		if frappe.local.is_ajax or 'application/json' in request.headers.get('Accept', ''):
 			response = frappe.utils.response.report_error(http_status_code)
 		else:
 			frappe.respond_as_web_page("Server Error",
@@ -119,6 +130,10 @@ def make_form_dict(request):
 	frappe.local.form_dict = frappe._dict({ k:v[0] if isinstance(v, (list, tuple)) else v \
 		for k, v in (request.form or request.args).iteritems() })
 
+	if "_" in frappe.local.form_dict:
+		# _ is passed by $.ajax so that the request is not cached by the browser. So, remove _ from form_dict
+		frappe.local.form_dict.pop("_")
+
 application = local_manager.make_middleware(application)
 
 def serve(port=8000, profile=False, site=None, sites_path='.'):
@@ -133,11 +148,11 @@ def serve(port=8000, profile=False, site=None, sites_path='.'):
 
 	if not os.environ.get('NO_STATICS'):
 		application = SharedDataMiddleware(application, {
-			'/assets': os.path.join(sites_path, 'assets'),
+			b'/assets': os.path.join(sites_path, 'assets').encode("utf-8"),
 		})
 
 		application = StaticDataMiddleware(application, {
-			'/files': os.path.abspath(sites_path)
+			b'/files': os.path.abspath(sites_path).encode("utf-8")
 		})
 
 	run_simple('0.0.0.0', int(port), application, use_reloader=True,

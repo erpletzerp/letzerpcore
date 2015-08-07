@@ -1,4 +1,4 @@
-// Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 
 frappe.provide("frappe.model");
@@ -109,6 +109,9 @@ $.extend(frappe.model, {
 			} else if (df["default"] == "Today") {
 				return dateutil.get_today();
 
+			} else if ((df["default"] || "").toLowerCase() === "now") {
+				return dateutil.now_datetime();
+
 			} else if (df["default"][0]===":") {
 				var boot_doc = frappe.model.get_default_from_boot_docs(df, doc, parent_doc);
 				var is_allowed_boot_doc = !has_user_permissions || user_permissions[df.options].indexOf(boot_doc)!==-1;
@@ -126,9 +129,6 @@ $.extend(frappe.model, {
 
 		} else if (df.fieldtype=="Time") {
 			return dateutil.now_time();
-
-		} else if(df.fieldtype=="Datetime") {
-			return dateutil.now_datetime()
 
 		}
 	},
@@ -152,20 +152,21 @@ $.extend(frappe.model, {
 		// create row doc
 		idx = idx ? idx - 0.1 : (parent_doc[parentfield] || []).length + 1;
 
-		var d = frappe.model.get_new_doc(doctype, parent_doc, parentfield);
-		d.idx = idx;
+		var child = frappe.model.get_new_doc(doctype, parent_doc, parentfield);
+		child.idx = idx;
 
 		// renum for fraction
 		if(idx !== cint(idx)) {
 			var sorted = parent_doc[parentfield].sort(function(a, b) { return a.idx - b.idx; });
-			$.each(sorted, function(i, d) {
+			for(var i=0, j=sorted.length; i<j; i++) {
+				var d = sorted[i];
 				d.idx = i + 1;
-			});
+			}
 		}
 
 		if (cur_frm && cur_frm.doc == parent_doc) cur_frm.dirty();
 
-		return d;
+		return child;
 	},
 
 	copy_doc: function(doc, from_amend, parent_doc, parentfield) {
@@ -179,11 +180,12 @@ $.extend(frappe.model, {
 			if(df && key.substr(0,2)!='__'
 				&& !in_list(no_copy_list, key)
 				&& !(df && (!from_amend && cint(df.no_copy)==1))) {
-					value = doc[key];
+					var value = doc[key] || [];
 					if(df.fieldtype==="Table") {
-						$.each(value || [], function(i, d) {
+						for(var i=0, j=value.length; i<j; i++) {
+							var d = value[i];
 							frappe.model.copy_doc(d, from_amend, newdoc, df.fieldname);
-						});
+						}
 					} else {
 						newdoc[key] = doc[key];
 					}

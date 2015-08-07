@@ -1,4 +1,4 @@
-// Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 
 // TODO
@@ -6,20 +6,33 @@
 
 frappe.provide('frappe.desk.pages.messages');
 
-frappe.pages.messages.onload = function(parent) {
+frappe.pages.messages.on_page_load = function(parent) {
 	var page = frappe.ui.make_app_page({
 		parent: parent,
 	});
-	page.set_title(__("Messages"), frappe.get_module("Messages").icon);
 
-	frappe.desk.pages.messages = new frappe.desk.pages.messages(parent);
+	page.set_title('<span class="hidden-xs">' + __("Messages") + '</span>'
+		+ '<span class="hidden-sm hidden-md hidden-lg message-to"></span>');
+
+	$(".navbar-center").html(__("Messages"));
+
+	frappe.desk.pages.messages = new frappe.desk.pages.Messages(parent);
 }
 
-frappe.desk.pages.messages = Class.extend({
+frappe.pages.messages.on_page_show = function() {
+	// clear title prefix
+	frappe.utils.set_title_prefix("");
+}
+
+frappe.desk.pages.Messages = Class.extend({
 	init: function(wrapper, page) {
 		this.wrapper = wrapper;
 		this.page = wrapper.page;
 		this.make();
+		this.page.sidebar.addClass("col-sm-3");
+		this.page.wrapper.find(".layout-main-section-wrapper").addClass("col-sm-9");
+		this.page.wrapper.find(".page-title").removeClass("col-xs-6").addClass("col-xs-12");
+		this.page.wrapper.find(".page-actions").removeClass("col-xs-6").addClass("hidden-xs");
 	},
 
 	make: function() {
@@ -65,6 +78,14 @@ frappe.desk.pages.messages = Class.extend({
 
 		this.page.main.html($(frappe.render_template("messages_main", { "contact": contact })));
 
+		this.page.main.find(".messages-textarea").on("focusout", function() {
+			// on touchscreen devices, scroll to top
+			// so that static navbar and page head don't overlap the textarea
+			if (frappe.dom.is_touchscreen()) {
+				frappe.ui.scroll($(this).parents(".message-box"));
+			}
+		});
+
 		this.page.main.find(".btn-post").on("click", function() {
 			var btn = $(this);
 			var message_box = btn.parents(".message-box");
@@ -92,9 +113,13 @@ frappe.desk.pages.messages = Class.extend({
 			}
 		});
 
+		this.page.wrapper.find(".page-head .message-to").html(frappe.user.full_name(contact));
+
 		this.make_message_list(contact);
 
 		this.list.run();
+
+		scroll(0, 0);
 	},
 
 	make_message_list: function(contact) {
@@ -102,12 +127,13 @@ frappe.desk.pages.messages = Class.extend({
 
 		this.list = new frappe.ui.Listing({
 			parent: this.page.main.find(".message-list"),
+			page: this.page,
 			method: 'frappe.desk.page.messages.messages.get_list',
 			args: {
 				contact: contact
 			},
 			hide_refresh: true,
-			no_loading: true,
+			freeze: false,
 			render_row: function(wrapper, data) {
 				var row = $(frappe.render_template("messages_row", {
 					data: data
@@ -133,8 +159,15 @@ frappe.desk.pages.messages = Class.extend({
 		// check for updates every 5 seconds if page is active
 		this.set_next_refresh();
 
-		if(!frappe.session_alive)
+		if(!frappe.session_alive) {
+			// not in session
 			return;
+		}
+
+		if(frappe.get_route()[0]!="messages") {
+			// not on messages page
+			return;
+		}
 
 		if (this.list) {
 			this.list.run();

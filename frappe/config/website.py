@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from frappe import _
 
 def get_data():
@@ -71,6 +72,11 @@ def get_data():
 					"type": "doctype",
 					"name": "Contact Us Settings",
 					"description": _("Settings for Contact Us Page."),
+				},
+				{
+					"type": "doctype",
+					"name": "Website Theme",
+					"description": _("List of themes for Website."),
 				},
 				{
 					"type": "doctype",

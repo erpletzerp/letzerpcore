@@ -4,7 +4,7 @@ frappe.ui.misc.about = function() {
 		var d = new frappe.ui.Dialog({title: __('LetzERP')})
 
 		$(d.body).html(repl("<div>\
-		<p>"+__("Open Source Web Applications for the Web")+"</p>  \
+		<p>"+__("Open Source Applications for the Web")+"</p>  \
 		<p><i class='icon-globe icon-fixed-width'></i>\
 			 Website: <a href='#' target='_blank'>#</a></p>\
 	 	<p><i class='icon-github icon-fixed-width'></i>\
@@ -18,10 +18,10 @@ frappe.ui.misc.about = function() {
 
 		frappe.ui.misc.about_dialog = d;
 
-		frappe.ui.misc.about_dialog.onshow = function() {
+		frappe.ui.misc.about_dialog.on_page_show = function() {
 			if(!frappe.versions) {
 				frappe.call({
-					method: "frappe.get_versions",
+					method: "frappe.utils.change_log.get_versions",
 					callback: function(r) {
 						show_versions(r.message);
 					}
@@ -34,7 +34,7 @@ frappe.ui.misc.about = function() {
 			$.each(keys(versions).sort(), function(i, key) {
 				var v = versions[key];
 				$($.format('<p><b>{0}:</b> v{1}<br><span class="text-muted">{2}</span></p>',
-					[v.title[0], v.version, v.description[0]])).appendTo($wrap);
+						   [v.title, v.version, v.description])).appendTo($wrap);
 			});
 
 			frappe.versions = versions;

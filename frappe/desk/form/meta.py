@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
 # metadata
@@ -11,12 +11,13 @@ from frappe.model.workflow import get_workflow_name
 from frappe.utils import get_html_format
 from frappe.translate import make_dict_from_messages, extract_messages_from_code
 from frappe.utils.jinja import render_include
+from frappe.build import html_to_js_template
 
 ######
 
 def get_meta(doctype, cached=True):
-	if cached:
-		meta = frappe.cache().get_value("form_meta:" + doctype, lambda: FormMeta(doctype))
+	if cached and not frappe.conf.developer_mode:
+		meta = frappe.cache().hget("form_meta", doctype, lambda: FormMeta(doctype))
 	else:
 		meta = FormMeta(doctype)
 
@@ -48,7 +49,7 @@ class FormMeta(Meta):
 			d[k] = self.get(k)
 
 		for i, df in enumerate(d.get("fields")):
-			for k in ("link_doctype", "search_fields"):
+			for k in ("link_doctype", "search_fields", "is_custom_field"):
 				df[k] = self.get("fields")[i].get(k)
 
 		return d
@@ -68,12 +69,26 @@ class FormMeta(Meta):
 			self.set("__listview_template", get_html_format(listview_template))
 
 		self.add_code_via_hook("doctype_js", "__js")
+		self.add_code_via_hook("doctype_list_js", "__list_js")
 		self.add_custom_script()
+		self.add_html_templates(path)
 
 	def _add_code(self, path, fieldname):
 		js = frappe.read_file(path)
 		if js:
 			self.set(fieldname, (self.get(fieldname) or "") + "\n\n" + render_include(js))
+
+	def add_html_templates(self, path):
+		if self.custom:
+			return
+		js = ""
+		for fname in os.listdir(path):
+			if fname.endswith(".html"):
+				with open(os.path.join(path, fname), 'r') as f:
+					template = unicode(f.read(), "utf-8")
+					js += html_to_js_template(fname, template)
+
+		self.set("__js", (self.get("__js") or "") + js)
 
 	def add_code_via_hook(self, hook, fieldname):
 		for app_name in frappe.get_installed_apps():

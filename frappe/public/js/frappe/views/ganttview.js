@@ -1,4 +1,4 @@
-// Copyright (c) 2013, Web Notes Technologies Pvt. Ltd. and Contributors
+// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 
 frappe.provide("frappe.views.calendar");
@@ -6,6 +6,10 @@ frappe.provide("frappe.views.calendar");
 frappe.views.GanttFactory = frappe.views.Factory.extend({
 	make: function(route) {
 		var me = this;
+
+		frappe.require('assets/frappe/js/lib/jQuery.Gantt/css/style.css');
+		frappe.require('assets/frappe/js/lib/jQuery.Gantt/js/jquery.fn.gantt.js');
+
 		frappe.model.with_doctype(route[1], function() {
 			var page = me.make_page();
 			$(page).on("show", function() {
@@ -23,13 +27,9 @@ frappe.views.GanttFactory = frappe.views.Factory.extend({
 	}
 });
 
-frappe.views.Gantt = Class.extend({
+frappe.views.Gantt = frappe.views.CalendarBase.extend({
 	init: function(opts) {
 		$.extend(this, opts);
-
-		frappe.require('assets/frappe/js/lib/jQuery.Gantt/css/style.css');
-		frappe.require('assets/frappe/js/lib/jQuery.Gantt/js/jquery.fn.gantt.js');
-
 		this.make_page();
 		frappe.route_options ?
 			this.set_filters_from_route_options() :
@@ -41,7 +41,7 @@ frappe.views.Gantt = Class.extend({
 
 		this.page = this.parent.page;
 		this.page.set_title(__("Gantt Chart") + " - " + __(this.doctype));
-		frappe.add_breadcrumbs(module, this.doctype);
+		frappe.breadcrumbs.add(module, this.doctype);
 
 		this.page.set_secondary_action(__("Refresh"),
 			function() { me.refresh(); }, "icon-refresh")
@@ -52,13 +52,8 @@ frappe.views.Gantt = Class.extend({
 		this.page.add_field({fieldtype:"Date", label:"To",
 			fieldname:"end", "default": frappe.datetime.month_end(), input_css: {"z-index": 3}});
 
-		if(this.filters) {
-			$.each(this.filters, function(i, df) {
-				me.page.add_field(df);
-			});
-		}
-
-		this.wrapper = $("<div></div>").appendTo(this.page.main);
+		this.add_filters();
+		this.wrapper = $("<div style='position:relative;z-index:1;'></div>").appendTo(this.page.main);
 
 	},
 	refresh: function() {
@@ -84,6 +79,7 @@ frappe.views.Gantt = Class.extend({
 						scale: "days",
 						minScale: "hours",
 						maxScale: "months",
+						itemsPerPage: 20,
 						onItemClick: function(data) {
 							frappe.set_route('Form', me.doctype, data.name);
 						},
@@ -95,27 +91,6 @@ frappe.views.Gantt = Class.extend({
 			}
 		})
 
-	},
-	set_filter: function(doctype, value) {
-		var me = this;
-		if(this.filters) {
-			$.each(this.filters, function(i, df) {
-				if(df.options===value)
-					me.page.fields_dict[df.fieldname].set_input(value);
-					return false;
-			});
-		}
-	},
-	get_filters: function() {
-		var filter_vals = {},
-			me = this;
-		if(this.filters) {
-			$.each(this.filters, function(i, df) {
-				filter_vals[df.fieldname || df.label] =
-					me.page.fields_dict[df.fieldname || df.label].get_parsed_value();
-			});
-		}
-		return filter_vals;
 	},
 	get_source: function(r) {
 		var source = [],
@@ -157,18 +132,5 @@ frappe.views.Gantt = Class.extend({
 			}
 		});
 		return source
-	},
-	set_filters_from_route_options: function() {
-		var me = this;
-		if(frappe.route_options) {
-			$.each(frappe.route_options, function(k, value) {
-				if(me.page.fields_dict[k]) {
-					me.page.fields_dict[k].set_input(value);
-				};
-			})
-			frappe.route_options = null;
-			me.refresh();
-			return false;
-		}
 	}
 });
