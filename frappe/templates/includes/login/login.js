@@ -47,7 +47,6 @@ login.bind_events = function() {
 		if(!args.email || !valid_email(args.email) || !args.full_name || !args.subdomain ) {
 			frappe.msgprint(__("Valid SubDomain , email and name required"));
 			return false;
-<<<<<<< HEAD:frappe/templates/includes/login.js
 		}		
 		//login.call(args);
 		frappe.call({
@@ -61,11 +60,6 @@ login.bind_events = function() {
 						}
 		});
 		
-=======
-		}
-		login.call(args);
-		return false;
->>>>>>> 6e6a469a0956db01b5640c8bb16c5752556a219e:frappe/templates/includes/login/login.js
 	});
 
 	$(".form-forgot").on("submit", function(event) {
@@ -78,17 +72,7 @@ login.bind_events = function() {
 			return false;
 		}
 		login.call(args);
-<<<<<<< HEAD:frappe/templates/includes/login.js
-		/*return frappe.call({
-						method: "frappe.templates.pages.login.create_demo",
-						args:{user: demo_usr_id},
-						callback: function(r) {
-							alert("Registeratin detail will be sent on your email id soon...!");
-						}
-		});*/
-=======
 		return false;
->>>>>>> 6e6a469a0956db01b5640c8bb16c5752556a219e:frappe/templates/includes/login/login.js
 	});
 }
 
@@ -117,12 +101,8 @@ login.signup = function() {
 
 // Login
 login.call = function(args) {
-<<<<<<< HEAD:frappe/templates/includes/login.js
-	$('.btn-primary').prop("disabled", true);
-=======
 	frappe.freeze();
 
->>>>>>> 6e6a469a0956db01b5640c8bb16c5752556a219e:frappe/templates/includes/login/login.js
 	$.ajax({
 		type: "POST",
 		url: "/",
