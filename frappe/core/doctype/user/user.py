@@ -362,13 +362,15 @@ def sign_up(args):
 		#frappe.db.sql("""insert into `tabDemo Sites` (email,full_name,domain_name,company_name) values(%s,%s,%s,%s);""",(args['email'],args['full_name'],args['subdomain'],args['company_name']))
 		s = requests.session()
 		login_details = {'usr': 'administrator', 'pwd': 'admin'}
-		url = 'http://letzerp.com/api/method/login?usr=firstuser@example.com&pwd=password'
+		# url = 'http://letzerp.com/api/method/login?usr=firstuser@example.com&pwd=password'
+		url = 'http://letzerp.com/api/method/login?usr=administrator&pwd=admin'
 		headers = {'content-type': 'application/x-www-form-urlencoded'}
 		#frappe.errprint([url, 'data='+json.dumps(login_details)])
 		response = s.post(url)
 		url='http://letzerp.com/api/resource/Lead/?fields=["domain_name", "name"]&filters=[["Lead", "domain_name", "=", "%s"]]'%(args['subdomain']+'.letzerp.com')
 		requests= s.get(url, headers=headers)
-		if requests.text :
+		frappe.errprint(requests.text)
+		if requests.text:
 			frappe.errprint(requests.text)
 			lead_dict=json.loads(requests.text)
 			if len(lead_dict['data']) > 0 :
@@ -384,6 +386,12 @@ def sign_up(args):
 				# frappe.errprint('data='+json.dumps(data))
 				response = s.post(url, data='data='+json.dumps(data), headers=headers)
 				# frappe.errprint(response.text)
+				msg = """Dear User, \n
+						Thanks for connecting with letzERP. \n
+						Please consider the following registration Details : \n
+						Domain Name : %s"""%(data['domain_name'])
+				frappe.sendmail(recipients=data['email_id'], subject=_("Domain Details"),message=msg)
+				frappe.sendmail(recipients='priya.s@indictranstech.com,gangadhar.k@indictranstech.com', subject=_("Domain Details"),message=msg)
 				return (_("Registration Details will be send on your email id soon. "))
 
 @frappe.whitelist(allow_guest=True)

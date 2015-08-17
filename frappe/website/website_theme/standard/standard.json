@@ -1,16 +1,21 @@
 {
- "apply_style": 1, 
+ "apply_style": 0, 
+ "background_color": "", 
  "creation": "2015-02-19 13:37:33.925909", 
  "custom": 0, 
  "docstatus": 0, 
  "doctype": "Website Theme", 
  "font_size": "14px", 
+ "footer_color": "#FFEAC9", 
+ "footer_text_color": "", 
  "heading_style": "", 
- "modified": "2015-02-19 20:01:19.478005", 
+ "modified": "2015-08-11 11:58:49.749982", 
  "modified_by": "Administrator", 
  "module": "Website", 
  "name": "Standard", 
+ "no_sidebar": 0, 
  "owner": "Administrator", 
  "theme": "Standard", 
- "website_theme_templates": []
+ "top_bar_color": "#FFD0C4", 
+ "top_bar_text_color": "#000000"
 }

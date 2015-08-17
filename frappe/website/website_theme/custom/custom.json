@@ -1,0 +1,22 @@
+{
+ "apply_style": 0, 
+ "background_color": "FFFFFF", 
+ "creation": "2015-08-07 16:47:27.583472", 
+ "custom": 0, 
+ "docstatus": 0, 
+ "doctype": "Website Theme", 
+ "font_size": "14px", 
+ "heading_style": "", 
+ "heading_webfont": "Noto Sans", 
+ "modified": "2015-08-10 15:32:15.344625", 
+ "modified_by": "Administrator", 
+ "module": "Website", 
+ "name": "Custom", 
+ "no_sidebar": 0, 
+ "owner": "Administrator", 
+ "text_color": "#000000", 
+ "text_webfont": "Noto Sans", 
+ "theme": "Custom", 
+ "top_bar_color": "#FFFFFF", 
+ "top_bar_text_color": "#000000"
+}
